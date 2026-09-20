@@ -13,6 +13,7 @@ CyberScraper is a small Python command-line tool that extracts, normalizes, clas
 - Can restrict output to the target host
 - Can restrict internal links and crawl scope to a path prefix
 - Can exclude one or more noisy internal path prefixes from output and crawling
+- Can exclude file extensions such as PDF or ZIP from output and crawl requests
 - Can export filtered results to JSON or CSV
 - Supports bounded same-host crawling with depth 0–2
 - Limits crawl size with \`--max-pages\`
@@ -74,6 +75,14 @@ python cyberscraper.py https://github.com/Deeb-M/CyberScraper --depth 1 --max-pa
 
 Repeat `--exclude-path-prefix` for as many internal prefixes as needed.
 
+Exclude file types from output and crawling:
+
+\`\`\`bash
+python cyberscraper.py https://example.com --depth 1 --exclude-extension pdf --exclude-extension .zip
+\`\`\`
+
+Extension matching is case-insensitive, and the leading dot is optional.
+
 Crawl up to depth 2 with the default safety limits:
 
 \`\`\`bash
@@ -108,7 +117,7 @@ python cyberscraper.py https://example.com --timeout 5
 
 \`--depth 0\` scans only the starting page. \`--depth 1\` scans the starting page plus eligible links found on it. \`--depth 2\` allows one additional level.
 
-CyberScraper never crawls external hosts. External links can still be reported, but only same-host links are eligible for additional requests. If \`--path-prefix\` is supplied, the crawler also stays inside that path. Any prefix supplied with \`--exclude-path-prefix\` is removed from the displayed internal results and is never queued for deeper crawling.
+CyberScraper never crawls external hosts. External links can still be reported, but only same-host links are eligible for additional requests. If \`--path-prefix\` is supplied, the crawler also stays inside that path. Any prefix supplied with \`--exclude-path-prefix\` is removed from the displayed internal results and is never queued for deeper crawling. Extensions supplied with \`--exclude-extension\` are filtered from both internal and external output, and matching internal links are not queued for crawling.
 
 The default crawl cap is 25 pages and the hard maximum is 100 pages. The default delay between crawl requests is 0.25 seconds.
 
@@ -143,7 +152,8 @@ JSON includes scan metadata, active filters, crawl information, counts, errors, 
   "filters": {
     "internal_only": false,
     "path_prefix": null,
-    "exclude_path_prefixes": []
+    "exclude_path_prefixes": [],
+    "exclude_extensions": [".pdf", ".zip"]
   },
   "crawl": {
     "depth": 1,
@@ -209,7 +219,6 @@ Use CyberScraper only on websites you own or where you have explicit permission 
 
 Planned improvements include:
 
-- Extension filters
 - Better logging
 - Optional robots.txt awareness
 - Expand automated test coverage
