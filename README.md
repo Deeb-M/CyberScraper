@@ -52,10 +52,25 @@ Set a custom timeout:
 python cyberscraper.py https://example.com --timeout 5
 ```
 
+## Testing
+
+Run the automated test suite locally with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+GitHub Actions also runs the syntax check and unit tests automatically for pull requests and pushes to `main`.
+
 ## Project structure
 
 ```text
 CyberScraper/
+├── .github/
+│   └── workflows/
+│       └── tests.yml
+├── tests/
+│   └── test_cyberscraper.py
 ├── cyberscraper.py
 ├── requirements.txt
 ├── README.md
@@ -75,7 +90,7 @@ Planned improvements include:
 - Basic crawl-depth support
 - Domain and extension filters
 - Better logging
-- Automated tests
+- Expand automated test coverage
 
 ## License
 
