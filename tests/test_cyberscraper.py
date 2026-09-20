@@ -1,4 +1,8 @@
+import csv
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -111,6 +115,74 @@ class ClassificationTests(unittest.TestCase):
                 "/project",
             )
         )
+
+
+class ExportTests(unittest.TestCase):
+    def setUp(self):
+        self.report = cyberscraper.build_report(
+            requested_url="https://example.com",
+            final_url="https://example.com/",
+            all_links=[
+                "https://example.com/about",
+                "https://external.test/page",
+            ],
+            internal=["https://example.com/about"],
+            external=["https://external.test/page"],
+            internal_only=False,
+            path_prefix=None,
+        )
+
+    def test_output_format_is_inferred_from_extension(self):
+        self.assertEqual(cyberscraper.output_format_for_path("results.json"), "json")
+        self.assertEqual(cyberscraper.output_format_for_path("results.CSV"), "csv")
+
+        with self.assertRaises(ValueError):
+            cyberscraper.output_format_for_path("results.txt")
+
+    def test_json_export_contains_metadata_and_links(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "results.json"
+            selected_format = cyberscraper.save_report(path, self.report)
+
+            self.assertEqual(selected_format, "json")
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["total_found"], 2)
+            self.assertEqual(saved["links"]["internal"], ["https://example.com/about"])
+            self.assertEqual(saved["links"]["external"], ["https://external.test/page"])
+
+    def test_csv_export_contains_category_and_url(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "results.csv"
+            selected_format = cyberscraper.save_report(path, self.report)
+
+            self.assertEqual(selected_format, "csv")
+            with path.open("r", encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+
+            self.assertEqual(
+                rows,
+                [
+                    {"category": "INTERNAL", "url": "https://example.com/about"},
+                    {"category": "EXTERNAL", "url": "https://external.test/page"},
+                ],
+            )
+
+    def test_internal_only_report_omits_external_links(self):
+        report = cyberscraper.build_report(
+            requested_url="https://example.com",
+            final_url="https://example.com/",
+            all_links=[
+                "https://example.com/about",
+                "https://external.test/page",
+            ],
+            internal=["https://example.com/about"],
+            external=["https://external.test/page"],
+            internal_only=True,
+            path_prefix=None,
+        )
+
+        self.assertEqual(report["total_shown"], 1)
+        self.assertEqual(report["links"]["external"], [])
 
 
 class ScrapeTests(unittest.TestCase):
