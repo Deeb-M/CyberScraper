@@ -72,6 +72,50 @@ class ReportingCliTests(unittest.TestCase):
         self.assertEqual(args.report_dir, "scans")
         self.assertFalse(args.report)
 
+    @patch("scryx.cli.save_report", side_effect=PermissionError("denied"))
+    @patch(
+        "scryx.cli.scrape",
+        return_value=([], "https://example.com/"),
+    )
+    def test_output_filesystem_error_is_reported_cleanly(
+        self,
+        _mock_scrape,
+        _mock_save,
+    ):
+        with patch(
+            "sys.argv",
+            ["scryx", "example.com", "--output", "results.json"],
+        ):
+            with io.StringIO() as buffer, redirect_stdout(buffer):
+                code = cli.main()
+                output = buffer.getvalue()
+
+        self.assertEqual(code, 1)
+        self.assertIn("Could not save report", output)
+        self.assertIn("denied", output)
+
+    @patch(
+        "scryx.cli.save_scan_bundle",
+        side_effect=PermissionError("denied"),
+    )
+    @patch(
+        "scryx.cli.scrape",
+        return_value=([], "https://example.com/"),
+    )
+    def test_bundle_filesystem_error_is_reported_cleanly(
+        self,
+        _mock_scrape,
+        _mock_save_bundle,
+    ):
+        with patch("sys.argv", ["scryx", "example.com", "--report"]):
+            with io.StringIO() as buffer, redirect_stdout(buffer):
+                code = cli.main()
+                output = buffer.getvalue()
+
+        self.assertEqual(code, 1)
+        self.assertIn("Could not save scan bundle", output)
+        self.assertIn("denied", output)
+
     def test_report_flag_uses_default_bundle_location(self):
         args = cli.build_parser().parse_args(["example.com", "--report"])
         self.assertTrue(args.report)
