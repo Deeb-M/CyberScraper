@@ -410,6 +410,37 @@ class CrawlTests(unittest.TestCase):
         self.assertEqual(mock_sleep.call_count, 2)
         mock_sleep.assert_any_call(0.2)
 
+    @patch("scryx.core.time.sleep")
+    @patch("scryx.core.scrape")
+    def test_delay_applies_between_sibling_requests_at_max_depth(
+        self,
+        mock_scrape,
+        mock_sleep,
+    ):
+        mock_scrape.side_effect = [
+            (
+                [
+                    "https://example.com/a",
+                    "https://example.com/b",
+                ],
+                "https://example.com/",
+            ),
+            ([], "https://example.com/a"),
+            ([], "https://example.com/b"),
+        ]
+
+        _links, _final_url, pages, errors = cyberscraper.crawl(
+            "https://example.com/",
+            depth=1,
+            max_pages=5,
+            delay=0.2,
+        )
+
+        self.assertEqual(len(pages), 3)
+        self.assertEqual(errors, [])
+        self.assertEqual(mock_sleep.call_count, 2)
+        mock_sleep.assert_any_call(0.2)
+
     @patch("scryx.core.scrape")
     def test_secondary_request_errors_are_recorded(self, mock_scrape):
         mock_scrape.side_effect = [
