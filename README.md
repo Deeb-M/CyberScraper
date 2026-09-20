@@ -1,107 +1,123 @@
 # CyberScraper
 
-CyberScraper is a small Python command-line tool that extracts, normalizes, classifies, and exports links from a web page. It is intended for learning, web analysis, and **authorized** cybersecurity reconnaissance.
+CyberScraper is a small Python command-line tool that extracts, normalizes, classifies, exports, and optionally crawls links from a web page. It is intended for learning, web analysis, and **authorized** cybersecurity reconnaissance.
 
 ## Features
 
 - Fetches a target web page over HTTP or HTTPS
-- Extracts links from `<a href="...">` elements
+- Extracts links from \`<a href="...">\` elements
 - Converts relative links into absolute URLs
 - Removes URL fragments and duplicates
-- Classifies links as `INTERNAL` or `EXTERNAL`
+- Classifies links as \`INTERNAL\` or \`EXTERNAL\`
 - Can restrict output to the target host
-- Can restrict internal links to a specific path prefix
+- Can restrict internal links and crawl scope to a path prefix
 - Can export filtered results to JSON or CSV
-- Handles common request failures cleanly
+- Supports bounded same-host crawling with depth 0–2
+- Limits crawl size with \`--max-pages\`
+- Adds a small delay between crawl requests
+- Handles request failures cleanly
 - Supports a configurable request timeout
 
 ## Requirements
 
 - Python 3.10+
-- `requests`
-- `beautifulsoup4`
+- \`requests\`
+- \`beautifulsoup4\`
 
 ## Installation
 
-```bash
+\`\`\`bash
 git clone https://github.com/Deeb-M/CyberScraper.git
 cd CyberScraper
 python -m venv .venv
-```
+\`\`\`
 
 Activate the virtual environment and install dependencies:
 
-```bash
+\`\`\`bash
 pip install -r requirements.txt
-```
+\`\`\`
 
 ## Usage
 
-Scan one page and classify the results:
+Scan one page:
 
-```bash
+\`\`\`bash
 python cyberscraper.py https://example.com
-```
+\`\`\`
 
-Show only links on the same host:
+Show only same-host links:
 
-```bash
+\`\`\`bash
 python cyberscraper.py https://example.com --internal-only
-```
+\`\`\`
 
-Restrict internal results to a project path:
+Restrict results to a project path:
 
-```bash
-python cyberscraper.py https://github.com/Deeb-M/CyberScraper --path-prefix /Deeb-M/CyberScraper
-```
-
-Combine both filters:
-
-```bash
+\`\`\`bash
 python cyberscraper.py https://github.com/Deeb-M/CyberScraper --internal-only --path-prefix /Deeb-M/CyberScraper
-```
+\`\`\`
 
-Save the filtered results as JSON:
+Crawl one level deeper while staying inside that path:
 
-```bash
-python cyberscraper.py https://github.com/Deeb-M/CyberScraper --internal-only --path-prefix /Deeb-M/CyberScraper --output results.json
-```
+\`\`\`bash
+python cyberscraper.py https://github.com/Deeb-M/CyberScraper --depth 1 --max-pages 10 --internal-only --path-prefix /Deeb-M/CyberScraper
+\`\`\`
 
-Save the filtered results as CSV:
+Crawl up to depth 2 with the default safety limits:
 
-```bash
+\`\`\`bash
+python cyberscraper.py https://example.com --depth 2
+\`\`\`
+
+Adjust the delay between crawl requests:
+
+\`\`\`bash
+python cyberscraper.py https://example.com --depth 1 --delay 0.5
+\`\`\`
+
+Save filtered results as JSON:
+
+\`\`\`bash
+python cyberscraper.py https://github.com/Deeb-M/CyberScraper --depth 1 --max-pages 10 --internal-only --path-prefix /Deeb-M/CyberScraper --output results.json
+\`\`\`
+
+Save filtered results as CSV:
+
+\`\`\`bash
 python cyberscraper.py https://github.com/Deeb-M/CyberScraper --internal-only --path-prefix /Deeb-M/CyberScraper --output results.csv
-```
+\`\`\`
 
 Set a custom timeout:
 
-```bash
+\`\`\`bash
 python cyberscraper.py https://example.com --timeout 5
-```
+\`\`\`
 
-Example terminal output:
+## Crawl behavior and limits
 
-```text
-[+] Found 8 unique link(s)
-[+] Showing 5 link(s) after filters
+\`--depth 0\` scans only the starting page. \`--depth 1\` scans the starting page plus eligible links found on it. \`--depth 2\` allows one additional level.
 
-[INTERNAL] (3)
-https://example.com/
-https://example.com/about
-https://example.com/login
+CyberScraper never crawls external hosts. External links can still be reported, but only same-host links are eligible for additional requests. If \`--path-prefix\` is supplied, the crawler also stays inside that path.
 
-[EXTERNAL] (2)
-https://docs.example.net/
-https://status.example.net/
+The default crawl cap is 25 pages and the hard maximum is 100 pages. The default delay between crawl requests is 0.25 seconds.
 
-[+] Saved JSON results to results.json
-```
+Example terminal summary:
 
-### JSON export
+\`\`\`text
+[+] Scanned 10 page(s)
+[+] Found 132 unique link(s)
+[+] Showing 46 link(s) after filters
 
-JSON includes scan metadata, active filters, counts, and categorized links.
+[INTERNAL] (46)
+...
+\`\`\`
 
-```json
+## JSON export
+
+JSON includes scan metadata, active filters, crawl information, counts, errors, and categorized links.
+
+\`\`\`json
 {
   "requested_url": "https://example.com",
   "final_url": "https://example.com/",
@@ -111,36 +127,42 @@ JSON includes scan metadata, active filters, counts, and categorized links.
     "internal_only": false,
     "path_prefix": null
   },
+  "crawl": {
+    "depth": 1,
+    "pages_scanned": 3,
+    "max_pages": 25,
+    "errors": []
+  },
   "links": {
     "internal": [],
     "external": []
   }
 }
-```
+\`\`\`
 
-### CSV export
+## CSV export
 
 CSV contains one row per visible result:
 
-```text
+\`\`\`text
 category,url
 INTERNAL,https://example.com/about
 EXTERNAL,https://status.example.net/
-```
+\`\`\`
 
 ## Testing
 
 Run the automated test suite locally with:
 
-```bash
+\`\`\`bash
 python -m unittest discover -s tests -v
-```
+\`\`\`
 
-GitHub Actions also runs the syntax check and unit tests automatically for pull requests and pushes to `main`.
+GitHub Actions runs syntax checks and unit tests automatically for pull requests and pushes to \`main\`.
 
 ## Project structure
 
-```text
+\`\`\`text
 CyberScraper/
 ├── .github/
 │   └── workflows/
@@ -152,7 +174,7 @@ CyberScraper/
 ├── README.md
 ├── LICENSE
 └── .gitignore
-```
+\`\`\`
 
 ## Responsible use
 
@@ -162,9 +184,9 @@ Use CyberScraper only on websites you own or where you have explicit permission 
 
 Planned improvements include:
 
-- Basic crawl-depth support
 - Domain and extension filters
 - Better logging
+- Optional robots.txt awareness
 - Expand automated test coverage
 
 ## License
