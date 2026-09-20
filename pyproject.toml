@@ -22,7 +22,7 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Deeb-M/CyberScraper"
+Repository = "https://github.com/Deeb-M/Scryx"
 
 [project.scripts]
 scryx = "scryx.cli:main"
