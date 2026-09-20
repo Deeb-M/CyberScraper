@@ -501,5 +501,117 @@ class ScrapeTests(unittest.TestCase):
             cyberscraper.scrape("https://example.com")
 
 
+class TargetPreparationTests(unittest.TestCase):
+    def test_missing_scheme_defaults_to_https(self):
+        self.assertEqual(
+            cyberscraper.prepare_target_url("example.com/path"),
+            "https://example.com/path",
+        )
+
+    def test_non_http_scheme_is_rejected(self):
+        with self.assertRaises(ValueError):
+            cyberscraper.prepare_target_url("ftp://example.com/file")
+
+
+class UrlAnalysisTests(unittest.TestCase):
+    def test_analysis_reports_assets_parameters_and_dynamic_candidates(self):
+        analysis = cyberscraper.analyze_links(
+            [
+                "https://example.com/",
+                "https://example.com/search?q=test&page=2",
+                "https://example.com/app.js?v=1",
+                "https://example.com/report.pdf",
+            ]
+        )
+
+        self.assertEqual(analysis["summary"]["pages"], 2)
+        self.assertEqual(analysis["summary"]["static_assets"], 2)
+        self.assertEqual(analysis["summary"]["parameterized"], 2)
+        self.assertEqual(analysis["summary"]["dynamic_candidates"], 1)
+        self.assertEqual(analysis["unique_parameters"], ["page", "q", "v"])
+
+
+class HttpCheckTests(unittest.TestCase):
+    @patch("scryx.core.requests.get")
+    def test_status_check_records_redirect_and_closes_response(self, mock_get):
+        response = MagicMock()
+        response.url = "https://example.com/final"
+        response.status_code = 200
+        mock_get.return_value = response
+
+        result = cyberscraper.check_http_status("https://example.com/start", timeout=6)
+
+        self.assertEqual(result["status"], 200)
+        self.assertTrue(result["redirected"])
+        self.assertFalse(result["broken"])
+        self.assertIsNone(result["error"])
+        mock_get.assert_called_once_with(
+            "https://example.com/start",
+            headers={"User-Agent": cyberscraper.USER_AGENT},
+            timeout=6,
+            allow_redirects=True,
+            stream=True,
+        )
+        response.close.assert_called_once_with()
+
+    @patch("scryx.core.check_http_status")
+    @patch("scryx.core.time.sleep")
+    def test_bounded_checks_deduplicate_and_respect_limit(self, mock_sleep, mock_check):
+        mock_check.side_effect = lambda url, timeout=10: {
+            "url": url,
+            "status": 200,
+            "final_url": url,
+            "redirected": False,
+            "broken": False,
+            "error": None,
+        }
+
+        results = cyberscraper.check_http_links(
+            [
+                "https://example.com",
+                "https://example.com/",
+                "https://example.com/a",
+                "https://example.com/b",
+            ],
+            limit=2,
+            delay=0.1,
+        )
+
+        self.assertEqual(len(results), 2)
+        self.assertEqual(
+            [call.args[0] for call in mock_check.call_args_list],
+            ["https://example.com", "https://example.com/a"],
+        )
+        mock_sleep.assert_called_once_with(0.1)
+
+
+class CrawlScopeHardeningTests(unittest.TestCase):
+    @patch("scryx.core.scrape")
+    def test_secondary_redirect_outside_host_is_not_parsed_or_followed_further(self, mock_scrape):
+        mock_scrape.side_effect = [
+            (
+                ["https://example.com/next"],
+                "https://example.com/",
+            ),
+            (
+                ["https://outside.test/secret", "https://example.com/should-not-queue"],
+                "https://outside.test/landing",
+            ),
+        ]
+
+        links, _final_url, pages, errors = cyberscraper.crawl(
+            "https://example.com/",
+            depth=2,
+            max_pages=10,
+            delay=0,
+        )
+
+        self.assertEqual(links, ["https://example.com/next"])
+        self.assertEqual(len(pages), 2)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("redirect escaped host scope", errors[0][1])
+        self.assertEqual(mock_scrape.call_count, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
