@@ -333,6 +333,30 @@ class CrawlTests(unittest.TestCase):
         self.assertEqual(links, ["https://example.com/"])
 
     @patch("scryx.core.scrape")
+    def test_redirected_final_url_is_not_crawled_twice(self, mock_scrape):
+        mock_scrape.return_value = (
+            ["https://example.com/"],
+            "https://example.com/",
+        )
+
+        links, final_url, pages, errors = cyberscraper.crawl(
+            "http://example.com/",
+            depth=1,
+            max_pages=5,
+            delay=0,
+        )
+
+        self.assertEqual(mock_scrape.call_count, 1)
+        self.assertEqual(
+            mock_scrape.call_args_list[0].args[0],
+            "http://example.com/",
+        )
+        self.assertEqual(pages, ["http://example.com/"])
+        self.assertEqual(final_url, "https://example.com/")
+        self.assertEqual(errors, [])
+        self.assertEqual(links, ["https://example.com/"])
+
+    @patch("scryx.core.scrape")
     def test_max_pages_stops_crawl(self, mock_scrape):
         mock_scrape.side_effect = [
             (
