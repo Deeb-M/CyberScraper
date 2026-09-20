@@ -19,7 +19,7 @@ DEFAULT_DELAY = 0.25
 DEFAULT_MAX_PAGES = 25
 MAX_CRAWL_DEPTH = 2
 MAX_PAGE_LIMIT = 100
-USER_AGENT = "CyberScraper/0.4 (+authorized-security-research)"
+USER_AGENT = "CyberScraper/0.4.1 (+authorized-security-research)"
 
 
 def normalize_url(base_url: str, href: str) -> str | None:
@@ -164,6 +164,17 @@ def print_group(title: str, links: list[str]) -> None:
         print(link)
 
 
+def print_crawl_errors(errors: list[tuple[str, str]]) -> None:
+    """Print failed crawl requests with their URL and reason."""
+    if not errors:
+        return
+
+    print(f"\n[CRAWL ERRORS] ({len(errors)})")
+    for error_url, message in errors:
+        print(f"- {error_url}")
+        print(f"  {message}")
+
+
 def build_report(
     requested_url: str,
     final_url: str,
@@ -192,7 +203,9 @@ def build_report(
         },
         "crawl": {
             "depth": depth,
-            "pages_scanned": pages_scanned,
+            "pages_attempted": pages_scanned,
+            "pages_scanned": pages_scanned - len(crawl_errors),
+            "failed_requests": len(crawl_errors),
             "max_pages": max_pages,
             "errors": [
                 {"url": error_url, "error": message}
@@ -330,12 +343,15 @@ def main() -> int:
     )
 
     visible_total = len(internal) if args.internal_only else len(internal) + len(external)
-    print(f"[+] Scanned {len(pages_scanned)} page(s)")
+    attempted_pages = len(pages_scanned)
+    successful_pages = attempted_pages - len(crawl_errors)
+
+    print(f"[+] Attempted {attempted_pages} page(s)")
+    print(f"[+] Successfully scanned {successful_pages} page(s)")
     print(f"[+] Found {len(links)} unique link(s)")
     print(f"[+] Showing {visible_total} link(s) after filters")
 
-    if crawl_errors:
-        print(f"[!] {len(crawl_errors)} crawl request(s) failed")
+    print_crawl_errors(crawl_errors)
 
     print_group("INTERNAL", internal)
     if not args.internal_only:
