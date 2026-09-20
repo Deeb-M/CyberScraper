@@ -49,19 +49,67 @@ class ExtractLinksTests(unittest.TestCase):
             ],
         )
 
-    def test_internal_only_removes_external_hosts(self):
-        links = cyberscraper.extract_links(
-            self.html,
-            "https://example.com/start",
-            internal_only=True,
+
+class ClassificationTests(unittest.TestCase):
+    def setUp(self):
+        self.links = [
+            "https://github.com/Deeb-M/CyberScraper",
+            "https://github.com/Deeb-M/CyberScraper/actions",
+            "https://github.com/Deeb-M/OtherRepo",
+            "https://docs.github.com/en",
+            "https://support.github.com/",
+        ]
+
+    def test_classifies_same_host_as_internal(self):
+        internal, external = cyberscraper.classify_links(
+            self.links,
+            "https://github.com/Deeb-M/CyberScraper",
         )
 
         self.assertEqual(
-            links,
+            internal,
             [
-                "https://example.com/about",
-                "https://example.com/login",
+                "https://github.com/Deeb-M/CyberScraper",
+                "https://github.com/Deeb-M/CyberScraper/actions",
+                "https://github.com/Deeb-M/OtherRepo",
             ],
+        )
+        self.assertEqual(
+            external,
+            [
+                "https://docs.github.com/en",
+                "https://support.github.com/",
+            ],
+        )
+
+    def test_path_prefix_restricts_only_internal_links(self):
+        internal, external = cyberscraper.classify_links(
+            self.links,
+            "https://github.com/Deeb-M/CyberScraper",
+            path_prefix="/Deeb-M/CyberScraper",
+        )
+
+        self.assertEqual(
+            internal,
+            [
+                "https://github.com/Deeb-M/CyberScraper",
+                "https://github.com/Deeb-M/CyberScraper/actions",
+            ],
+        )
+        self.assertEqual(
+            external,
+            [
+                "https://docs.github.com/en",
+                "https://support.github.com/",
+            ],
+        )
+
+    def test_path_prefix_does_not_match_similar_prefix(self):
+        self.assertFalse(
+            cyberscraper.path_matches_prefix(
+                "https://example.com/project-other",
+                "/project",
+            )
         )
 
 
@@ -74,9 +122,10 @@ class ScrapeTests(unittest.TestCase):
         response.raise_for_status.return_value = None
         mock_get.return_value = response
 
-        links = cyberscraper.scrape("https://example.com", timeout=7)
+        links, final_url = cyberscraper.scrape("https://example.com", timeout=7)
 
         self.assertEqual(links, ["https://example.com/final"])
+        self.assertEqual(final_url, "https://example.com/redirected")
         mock_get.assert_called_once_with(
             "https://example.com",
             headers={"User-Agent": cyberscraper.USER_AGENT},
