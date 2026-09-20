@@ -23,6 +23,14 @@ class NormalizeUrlTests(unittest.TestCase):
             with self.subTest(href=href):
                 self.assertIsNone(cyberscraper.normalize_url("https://example.com", href))
 
+    def test_placeholder_ellipsis_path_is_ignored(self):
+        self.assertIsNone(
+            cyberscraper.normalize_url(
+                "https://github.com/Deeb-M/CyberScraper",
+                "/Deeb-M/CyberScraper/blob/main/...",
+            )
+        )
+
 
 class ExtractLinksTests(unittest.TestCase):
     def setUp(self):
