@@ -19,7 +19,7 @@ DEFAULT_DELAY = 0.25
 DEFAULT_MAX_PAGES = 25
 MAX_CRAWL_DEPTH = 2
 MAX_PAGE_LIMIT = 100
-USER_AGENT = "CyberScraper/0.5 (+authorized-security-research)"
+USER_AGENT = "CyberScraper/0.6 (+authorized-security-research)"
 
 
 def normalize_url(base_url: str, href: str) -> str | None:
@@ -82,17 +82,52 @@ def path_is_excluded(link: str, exclude_path_prefixes: list[str] | None) -> bool
     return any(path_matches_prefix(link, prefix) for prefix in exclude_path_prefixes)
 
 
+def normalize_extensions(extensions: list[str] | None) -> list[str]:
+    """Normalize extensions to lowercase values beginning with a dot."""
+    if not extensions:
+        return []
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+
+    for extension in extensions:
+        value = extension.strip().lower()
+        if not value:
+            continue
+        if not value.startswith("."):
+            value = f".{value}"
+        if value not in seen:
+            seen.add(value)
+            normalized.append(value)
+
+    return normalized
+
+
+def has_excluded_extension(link: str, exclude_extensions: list[str] | None) -> bool:
+    """Return True when a URL path ends with an excluded extension."""
+    excluded = set(normalize_extensions(exclude_extensions))
+    if not excluded:
+        return False
+
+    suffix = Path(urlparse(link).path).suffix.lower()
+    return suffix in excluded
+
+
 def classify_links(
     links: list[str],
     target_url: str,
     path_prefix: str | None = None,
     exclude_path_prefixes: list[str] | None = None,
+    exclude_extensions: list[str] | None = None,
 ) -> tuple[list[str], list[str]]:
     """Split links into internal and external groups."""
     internal: list[str] = []
     external: list[str] = []
 
     for link in links:
+        if has_excluded_extension(link, exclude_extensions):
+            continue
+
         if is_internal_link(link, target_url):
             if path_matches_prefix(link, path_prefix) and not path_is_excluded(
                 link, exclude_path_prefixes
@@ -119,6 +154,7 @@ def crawl(
     timeout: int = DEFAULT_TIMEOUT,
     path_prefix: str | None = None,
     exclude_path_prefixes: list[str] | None = None,
+    exclude_extensions: list[str] | None = None,
     delay: float = DEFAULT_DELAY,
 ) -> tuple[list[str], str, list[str], list[tuple[str, str]]]:
     """Crawl same-host links up to a bounded depth.
@@ -162,6 +198,8 @@ def crawl(
                 continue
             if path_is_excluded(link, exclude_path_prefixes):
                 continue
+            if has_excluded_extension(link, exclude_extensions):
+                continue
             if link not in visited:
                 queue.append((link, current_depth + 1))
 
@@ -202,6 +240,7 @@ def build_report(
     internal_only: bool,
     path_prefix: str | None,
     exclude_path_prefixes: list[str] | None = None,
+    exclude_extensions: list[str] | None = None,
     depth: int = 0,
     pages_scanned: int = 1,
     max_pages: int = DEFAULT_MAX_PAGES,
@@ -220,6 +259,7 @@ def build_report(
             "internal_only": internal_only,
             "path_prefix": path_prefix,
             "exclude_path_prefixes": exclude_path_prefixes or [],
+            "exclude_extensions": normalize_extensions(exclude_extensions),
         },
         "crawl": {
             "depth": depth,
@@ -299,6 +339,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--exclude-extension",
+        action="append",
+        default=[],
+        help=(
+            "Exclude links ending with a file extension, for example pdf or .zip. "
+            "Repeat the option to exclude multiple extensions."
+        ),
+    )
+    parser.add_argument(
         "--depth",
         type=int,
         choices=range(0, MAX_CRAWL_DEPTH + 1),
@@ -347,6 +396,8 @@ def main() -> int:
             print(f"[!] {exc}")
             return 2
 
+    excluded_extensions = normalize_extensions(args.exclude_extension)
+
     try:
         if args.depth == 0:
             links, final_url = scrape(args.url, timeout=args.timeout)
@@ -360,6 +411,7 @@ def main() -> int:
                 timeout=args.timeout,
                 path_prefix=args.path_prefix,
                 exclude_path_prefixes=args.exclude_path_prefix,
+                exclude_extensions=excluded_extensions,
                 delay=args.delay,
             )
     except requests.RequestException as exc:
@@ -371,6 +423,7 @@ def main() -> int:
         final_url,
         path_prefix=args.path_prefix,
         exclude_path_prefixes=args.exclude_path_prefix,
+        exclude_extensions=excluded_extensions,
     )
 
     visible_total = len(internal) if args.internal_only else len(internal) + len(external)
@@ -398,6 +451,7 @@ def main() -> int:
             internal_only=args.internal_only,
             path_prefix=args.path_prefix,
             exclude_path_prefixes=args.exclude_path_prefix,
+            exclude_extensions=excluded_extensions,
             depth=args.depth,
             pages_scanned=len(pages_scanned),
             max_pages=args.max_pages,
