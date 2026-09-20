@@ -19,7 +19,7 @@ DEFAULT_DELAY = 0.25
 DEFAULT_MAX_PAGES = 25
 MAX_CRAWL_DEPTH = 2
 MAX_PAGE_LIMIT = 100
-USER_AGENT = "CyberScraper/0.4.2 (+authorized-security-research)"
+USER_AGENT = "CyberScraper/0.5 (+authorized-security-research)"
 
 
 def normalize_url(base_url: str, href: str) -> str | None:
@@ -74,10 +74,19 @@ def path_matches_prefix(link: str, path_prefix: str | None) -> bool:
     return path == normalized_prefix or path.startswith(normalized_prefix.rstrip("/") + "/")
 
 
+def path_is_excluded(link: str, exclude_path_prefixes: list[str] | None) -> bool:
+    """Return True when a link matches any excluded path prefix."""
+    if not exclude_path_prefixes:
+        return False
+
+    return any(path_matches_prefix(link, prefix) for prefix in exclude_path_prefixes)
+
+
 def classify_links(
     links: list[str],
     target_url: str,
     path_prefix: str | None = None,
+    exclude_path_prefixes: list[str] | None = None,
 ) -> tuple[list[str], list[str]]:
     """Split links into internal and external groups."""
     internal: list[str] = []
@@ -85,7 +94,9 @@ def classify_links(
 
     for link in links:
         if is_internal_link(link, target_url):
-            if path_matches_prefix(link, path_prefix):
+            if path_matches_prefix(link, path_prefix) and not path_is_excluded(
+                link, exclude_path_prefixes
+            ):
                 internal.append(link)
         else:
             external.append(link)
@@ -107,6 +118,7 @@ def crawl(
     max_pages: int = DEFAULT_MAX_PAGES,
     timeout: int = DEFAULT_TIMEOUT,
     path_prefix: str | None = None,
+    exclude_path_prefixes: list[str] | None = None,
     delay: float = DEFAULT_DELAY,
 ) -> tuple[list[str], str, list[str], list[tuple[str, str]]]:
     """Crawl same-host links up to a bounded depth.
@@ -148,6 +160,8 @@ def crawl(
                 continue
             if not path_matches_prefix(link, path_prefix):
                 continue
+            if path_is_excluded(link, exclude_path_prefixes):
+                continue
             if link not in visited:
                 queue.append((link, current_depth + 1))
 
@@ -187,6 +201,7 @@ def build_report(
     external: list[str],
     internal_only: bool,
     path_prefix: str | None,
+    exclude_path_prefixes: list[str] | None = None,
     depth: int = 0,
     pages_scanned: int = 1,
     max_pages: int = DEFAULT_MAX_PAGES,
@@ -204,6 +219,7 @@ def build_report(
         "filters": {
             "internal_only": internal_only,
             "path_prefix": path_prefix,
+            "exclude_path_prefixes": exclude_path_prefixes or [],
         },
         "crawl": {
             "depth": depth,
@@ -274,6 +290,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--exclude-path-prefix",
+        action="append",
+        default=[],
+        help=(
+            "Exclude an internal path prefix from output and crawling. "
+            "Repeat the option to exclude multiple prefixes."
+        ),
+    )
+    parser.add_argument(
         "--depth",
         type=int,
         choices=range(0, MAX_CRAWL_DEPTH + 1),
@@ -334,6 +359,7 @@ def main() -> int:
                 max_pages=args.max_pages,
                 timeout=args.timeout,
                 path_prefix=args.path_prefix,
+                exclude_path_prefixes=args.exclude_path_prefix,
                 delay=args.delay,
             )
     except requests.RequestException as exc:
@@ -344,6 +370,7 @@ def main() -> int:
         links,
         final_url,
         path_prefix=args.path_prefix,
+        exclude_path_prefixes=args.exclude_path_prefix,
     )
 
     visible_total = len(internal) if args.internal_only else len(internal) + len(external)
@@ -370,6 +397,7 @@ def main() -> int:
             external=external,
             internal_only=args.internal_only,
             path_prefix=args.path_prefix,
+            exclude_path_prefixes=args.exclude_path_prefix,
             depth=args.depth,
             pages_scanned=len(pages_scanned),
             max_pages=args.max_pages,
