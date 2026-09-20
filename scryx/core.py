@@ -365,6 +365,7 @@ def crawl(
     discovered: set[str] = set()
     errors: list[tuple[str, str]] = []
     first_final_url: str | None = None
+    request_attempts = 0
 
     while queue and len(visited) < max_pages:
         current_url, current_depth = queue.popleft()
@@ -373,6 +374,10 @@ def crawl(
             continue
 
         visited.add(current_url)
+
+        if request_attempts > 0 and delay > 0:
+            time.sleep(delay)
+        request_attempts += 1
 
         try:
             links, final_url = scrape(
@@ -384,8 +389,6 @@ def crawl(
             if current_url == start_url and first_final_url is None:
                 raise
             errors.append((current_url, str(exc)))
-            if delay > 0 and queue and len(visited) < max_pages:
-                time.sleep(delay)
             continue
 
         final_url = canonical_crawl_url(final_url)
@@ -398,15 +401,11 @@ def crawl(
                 errors.append(
                     (current_url, f"redirect escaped host scope: {final_url}")
                 )
-                if delay > 0 and queue and len(visited) < max_pages:
-                    time.sleep(delay)
                 continue
             if path_prefix and not path_matches_prefix(final_url, path_prefix):
                 errors.append(
                     (current_url, f"redirect escaped path scope: {final_url}")
                 )
-                if delay > 0 and queue and len(visited) < max_pages:
-                    time.sleep(delay)
                 continue
 
         discovered.update(links)
@@ -432,9 +431,6 @@ def crawl(
             ):
                 queue.append((crawl_link, current_depth + 1))
                 queued.add(crawl_link)
-
-        if delay > 0 and queue and len(visited) < max_pages:
-            time.sleep(delay)
 
     return sorted(discovered), first_final_url or start_url, sorted(visited), errors
 

@@ -365,12 +365,20 @@ def main() -> int:
         )
 
     if args.output and report is not None:
-        output_format = save_report(args.output, report)
+        try:
+            output_format = save_report(args.output, report)
+        except OSError as exc:
+            print(f"[!] Could not save report: {exc}")
+            return 1
         print(f"\n[+] Saved {output_format.upper()} results to {args.output}")
 
     if (args.report or args.report_dir) and report is not None:
         base_dir = args.report_dir or "scryx-scans"
-        scan_dir = save_scan_bundle(base_dir, report)
+        try:
+            scan_dir = save_scan_bundle(base_dir, report)
+        except OSError as exc:
+            print(f"[!] Could not save scan bundle: {exc}")
+            return 1
         print(f"\n[+] Saved scan bundle to {scan_dir}")
 
     return 0

@@ -157,6 +157,33 @@ class ReportingTests(unittest.TestCase):
             summary = (scan_dir / "summary.txt").read_text(encoding="utf-8")
             self.assertIn("Scryx Recon Report", summary)
 
+    def test_scan_bundle_collision_uses_incremented_suffix(self):
+        fixed_time = datetime(2026, 9, 20, 18, 30, tzinfo=timezone.utc)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            first = reporting.save_scan_bundle(
+                temp_dir,
+                self.report,
+                timestamp=fixed_time,
+            )
+            second = reporting.save_scan_bundle(
+                temp_dir,
+                self.report,
+                timestamp=fixed_time,
+            )
+
+            self.assertEqual(
+                first.name,
+                "20260920T183000Z_example.com_recon",
+            )
+            self.assertEqual(
+                second.name,
+                "20260920T183000Z_example.com_recon_2",
+            )
+            self.assertTrue((second / "report.json").is_file())
+            self.assertTrue((second / "links.csv").is_file())
+            self.assertTrue((second / "summary.txt").is_file())
+
     def test_individual_txt_output_is_supported(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "summary.txt"
