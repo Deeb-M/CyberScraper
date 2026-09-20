@@ -2,7 +2,7 @@
 
 Scryx is a focused web reconnaissance CLI for authorized security work. It grew from the original CyberScraper project into an installable command-line tool designed for Kali Linux and normal terminal use.
 
-> Current release: **v1.0.0**
+> Current release: **v1.0.1**
 >
 > The repository is public. Use Scryx only on systems you own or where you have explicit permission to perform reconnaissance or security testing.
 
