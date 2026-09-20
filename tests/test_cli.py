@@ -12,11 +12,12 @@ class CliTests(unittest.TestCase):
         self.assertEqual(cli.build_parser().prog, "scryx")
 
     def test_version_flag_reports_package_version(self):
+        buffer = io.StringIO()
         with patch("sys.argv", ["scryx", "--version"]):
-            with self.assertRaises(SystemExit) as exc, io.StringIO() as buffer, redirect_stdout(buffer):
+            with self.assertRaises(SystemExit) as exc, redirect_stdout(buffer):
                 cli.main()
-            self.assertEqual(exc.exception.code, 0)
-            self.assertIn(f"Scryx {__version__}", buffer.getvalue())
+        self.assertEqual(exc.exception.code, 0)
+        self.assertIn(f"Scryx {__version__}", buffer.getvalue())
 
     def test_no_target_prints_help_and_returns_usage_error(self):
         with patch("sys.argv", ["scryx"]):
