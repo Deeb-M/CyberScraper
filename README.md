@@ -16,6 +16,17 @@ scryx example.com --recon
 
 Scryx handles the crawl, URL normalization, scope controls, URL-shape analysis, and bounded HTTP checks in one workflow while keeping conservative request limits.
 
+## User guide
+
+For a complete explanation of every option shown by `scryx --help`, recommended workflows, scope behavior, reports, redirects, and practical examples, see [USER_GUIDE.md](USER_GUIDE.md).
+
+If you are new to Scryx, start with:
+
+```bash
+scryx example.com --quick
+scryx example.com --recon --report
+```
+
 ## Current capabilities
 
 - Installable Kali/Linux CLI through `pipx`
@@ -49,7 +60,7 @@ Scryx handles the crawl, URL normalization, scope controls, URL-shape analysis, 
 
 ## Recon presets
 
-Scryx v0.8 adds three simple presets.
+Scryx includes three simple presets.
 
 ### Quick
 
@@ -96,7 +107,13 @@ Explicit options can override preset values when needed.
 
 ## Kali installation
 
-Install prerequisites:
+The simplest installation from the public GitHub repository is:
+
+```bash
+pipx install git+https://github.com/Deeb-M/Scryx.git
+```
+
+If `pipx` is not installed yet:
 
 ```bash
 sudo apt update
@@ -104,7 +121,7 @@ sudo apt install -y git pipx
 pipx ensurepath
 ```
 
-Clone and install:
+You can also clone the repository and install from the local source tree:
 
 ```bash
 git clone https://github.com/Deeb-M/Scryx.git
@@ -131,7 +148,7 @@ scryx example.com --recon
 After pulling newer code:
 
 ```bash
-cd CyberScraper
+cd Scryx
 git pull
 pipx reinstall scryx-recon
 ```
@@ -293,7 +310,7 @@ GitHub Actions installs the package, compiles the project, verifies the CLI entr
 ## Project structure
 
 ```text
-CyberScraper/
+Scryx/
 ├── .github/
 │   └── workflows/
 │       └── tests.yml
