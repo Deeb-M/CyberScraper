@@ -117,6 +117,94 @@ class ClassificationTests(unittest.TestCase):
         )
 
 
+class CrawlTests(unittest.TestCase):
+    @patch("cyberscraper.time.sleep")
+    @patch("cyberscraper.scrape")
+    def test_depth_one_crawls_only_internal_matching_scope(self, mock_scrape, mock_sleep):
+        responses = {
+            "https://example.com/project": (
+                [
+                    "https://example.com/project/a",
+                    "https://example.com/other",
+                    "https://external.test/page",
+                ],
+                "https://example.com/project",
+            ),
+            "https://example.com/project/a": (
+                [
+                    "https://example.com/project/b",
+                    "https://external.test/second",
+                ],
+                "https://example.com/project/a",
+            ),
+        }
+        mock_scrape.side_effect = lambda url, timeout=10: responses[url]
+
+        links, final_url, pages, errors = cyberscraper.crawl(
+            "https://example.com/project",
+            depth=1,
+            max_pages=10,
+            path_prefix="/project",
+            delay=0.1,
+        )
+
+        self.assertEqual(final_url, "https://example.com/project")
+        self.assertEqual(
+            pages,
+            [
+                "https://example.com/project",
+                "https://example.com/project/a",
+            ],
+        )
+        self.assertEqual(errors, [])
+        self.assertIn("https://example.com/project/b", links)
+        self.assertIn("https://external.test/page", links)
+        requested_urls = [call.args[0] for call in mock_scrape.call_args_list]
+        self.assertNotIn("https://example.com/other", requested_urls)
+        self.assertNotIn("https://external.test/page", requested_urls)
+        mock_sleep.assert_called_once()
+
+    @patch("cyberscraper.scrape")
+    def test_max_pages_stops_crawl(self, mock_scrape):
+        mock_scrape.side_effect = [
+            (
+                [
+                    "https://example.com/a",
+                    "https://example.com/b",
+                ],
+                "https://example.com/",
+            ),
+            (["https://example.com/c"], "https://example.com/a"),
+        ]
+
+        _links, _final_url, pages, _errors = cyberscraper.crawl(
+            "https://example.com/",
+            depth=2,
+            max_pages=2,
+            delay=0,
+        )
+
+        self.assertEqual(len(pages), 2)
+        self.assertEqual(mock_scrape.call_count, 2)
+
+    @patch("cyberscraper.scrape")
+    def test_secondary_request_errors_are_recorded(self, mock_scrape):
+        mock_scrape.side_effect = [
+            (["https://example.com/a"], "https://example.com/"),
+            requests.RequestException("blocked"),
+        ]
+
+        _links, _final_url, pages, errors = cyberscraper.crawl(
+            "https://example.com/",
+            depth=1,
+            max_pages=5,
+            delay=0,
+        )
+
+        self.assertEqual(len(pages), 2)
+        self.assertEqual(errors, [("https://example.com/a", "blocked")])
+
+
 class ExportTests(unittest.TestCase):
     def setUp(self):
         self.report = cyberscraper.build_report(
@@ -130,6 +218,9 @@ class ExportTests(unittest.TestCase):
             external=["https://external.test/page"],
             internal_only=False,
             path_prefix=None,
+            depth=1,
+            pages_scanned=2,
+            max_pages=25,
         )
 
     def test_output_format_is_inferred_from_extension(self):
@@ -147,6 +238,8 @@ class ExportTests(unittest.TestCase):
             self.assertEqual(selected_format, "json")
             saved = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(saved["total_found"], 2)
+            self.assertEqual(saved["crawl"]["depth"], 1)
+            self.assertEqual(saved["crawl"]["pages_scanned"], 2)
             self.assertEqual(saved["links"]["internal"], ["https://example.com/about"])
             self.assertEqual(saved["links"]["external"], ["https://external.test/page"])
 
