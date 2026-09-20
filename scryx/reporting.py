@@ -18,6 +18,7 @@ REPORT_FIELDS = [
     "status",
     "final_url",
     "redirected",
+    "blocked_redirect",
     "broken",
     "error",
 ]
@@ -69,6 +70,7 @@ def build_csv_rows(report: dict) -> list[dict]:
                     "status": "" if check.get("status") is None else check.get("status"),
                     "final_url": check.get("final_url") or "",
                     "redirected": bool(check.get("redirected", False)),
+                    "blocked_redirect": check.get("blocked_redirect") or "",
                     "broken": bool(check.get("broken", False)),
                     "error": check.get("error") or "",
                 }
@@ -117,6 +119,7 @@ def render_text_report(report: dict) -> str:
         "-----------",
         f"Checked: {http.get('checked', 0)}",
         f"Redirects: {http.get('redirects', 0)}",
+        f"Blocked redirects: {http.get('blocked_redirects', 0)}",
         f"Broken/error results: {http.get('broken', 0)}",
         f"Request errors: {http.get('errors', 0)}",
     ]
@@ -128,14 +131,24 @@ def render_text_report(report: dict) -> str:
     interesting = [
         item
         for item in report.get("http_checks", {}).get("results", [])
-        if item.get("redirected") or item.get("broken") or item.get("error")
+        if (
+            item.get("redirected")
+            or item.get("blocked_redirect")
+            or item.get("broken")
+            or item.get("error")
+        )
     ]
     if interesting:
         lines.extend(["", "HTTP Findings", "-------------"])
         for item in interesting:
             status = item.get("status")
             label = "ERR" if status is None else str(status)
-            suffix = f" -> {item.get('final_url')}" if item.get("redirected") else ""
+            if item.get("blocked_redirect"):
+                suffix = f" - blocked redirect -> {item.get('blocked_redirect')}"
+            elif item.get("redirected"):
+                suffix = f" -> {item.get('final_url')}"
+            else:
+                suffix = ""
             error = f" | {item.get('error')}" if item.get("error") else ""
             lines.append(f"[{label}] {item.get('url')}{suffix}{error}")
 

@@ -2,7 +2,7 @@
 
 Scryx is a focused web reconnaissance CLI for authorized security work. It grew from the original CyberScraper project into an installable command-line tool designed for Kali Linux and normal terminal use.
 
-> Current development line: **v0.9**
+> Current development line: **v0.9.1**
 >
 > The repository is public. Scryx remains under active development and should be used only on systems you own or where you have explicit permission to perform reconnaissance or security testing.
 
@@ -234,7 +234,9 @@ Scryx keeps reconnaissance deliberately bounded.
 - Hard HTTP check limit: 50
 - External hosts are never crawled
 - External status checks require `--check-external`
-- Secondary crawl responses that redirect outside the established host/path scope are discarded
+- Redirects are followed only while they stay inside the requested host scope
+- Path-restricted crawls also block redirects that escape the requested path prefix
+- Cross-host redirects discovered during HTTP checks are reported but are not followed
 
 These limits are intentional while the tool is developed and validated.
 
@@ -315,9 +317,11 @@ CyberScraper/
 
 **v0.8 — Recon workflow:** completed. Presets, URL intelligence, bounded HTTP status/redirect checks, and safer crawl handling were validated on Kali Linux.
 
-**v0.9 — Reporting:** timestamped scan directories, richer JSON/CSV/TXT output, concise professional summaries, and report usability.
+**v0.9 — Reporting:** completed. Timestamped scan directories, richer JSON/CSV/TXT output, concise professional summaries, and report usability were validated on Kali Linux.
 
-**v0.9.x — Hardening:** malformed HTML, redirect edge cases, timeouts, duplicate behavior, HTTP/HTTPS edge cases, robots-awareness decisions, and broader regression coverage.
+**v0.9.1 — Redirect hardening:** strict same-host redirect following, blocked cross-host redirect reporting, path-scope redirect protection, malformed-HTML regression coverage, and broader redirect tests.
+
+**v0.9.x — Remaining hardening:** timeout/HTTP edge cases, duplicate behavior, robots-awareness decisions, and broader regression coverage before the v1.0 release candidate.
 
 **v1.0 — Public release target:** simple Kali installation, short normal workflow, stable presets, useful reports, clean documentation, and final release validation.
 

@@ -225,13 +225,16 @@ def print_http_checks(checks: list[dict]) -> None:
             continue
 
         suffix = ""
-        if item["redirected"]:
+        if item.get("blocked_redirect"):
+            suffix = f" - blocked redirect -> {item['blocked_redirect']}"
+        elif item["redirected"]:
             suffix = f" -> {item['final_url']}"
         print(f"[{item['status']}] {item['url']}{suffix}")
 
     print(
         "[+] HTTP summary: "
         f"{summary['redirects']} redirect(s), "
+        f"{summary['blocked_redirects']} blocked redirect(s), "
         f"{summary['broken']} broken/error result(s)"
     )
 
@@ -275,7 +278,11 @@ def main() -> int:
 
     try:
         if settings["depth"] == 0:
-            links, final_url = scrape(target_url, timeout=args.timeout)
+            links, final_url = scrape(
+                target_url,
+                timeout=args.timeout,
+                path_prefix=args.path_prefix,
+            )
             pages_scanned = [final_url]
             crawl_errors: list[tuple[str, str]] = []
         else:
