@@ -201,8 +201,17 @@ def save_scan_bundle(
 ) -> Path:
     """Create a scan directory containing JSON, CSV, and TXT reports."""
     root = Path(base_dir)
-    scan_dir = root / build_scan_directory_name(report, timestamp=timestamp)
-    scan_dir.mkdir(parents=True, exist_ok=False)
+    base_name = build_scan_directory_name(report, timestamp=timestamp)
+    suffix = 1
+
+    while True:
+        directory_name = base_name if suffix == 1 else f"{base_name}_{suffix}"
+        scan_dir = root / directory_name
+        try:
+            scan_dir.mkdir(parents=True, exist_ok=False)
+            break
+        except FileExistsError:
+            suffix += 1
 
     save_report(scan_dir / "report.json", report)
     save_report(scan_dir / "links.csv", report)
