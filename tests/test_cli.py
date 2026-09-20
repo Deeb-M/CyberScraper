@@ -28,5 +28,41 @@ class CliTests(unittest.TestCase):
         self.assertIn("usage: scryx", output)
 
 
+class PresetTests(unittest.TestCase):
+    def test_recon_preset_uses_balanced_defaults(self):
+        args = cli.build_parser().parse_args(["example.com", "--recon"])
+        settings = cli.resolve_scan_settings(args)
+
+        self.assertEqual(settings["preset"], "recon")
+        self.assertEqual(settings["depth"], 1)
+        self.assertEqual(settings["max_pages"], 25)
+        self.assertTrue(settings["check_links"])
+        self.assertEqual(settings["check_limit"], 25)
+
+    def test_explicit_values_override_deep_preset(self):
+        args = cli.build_parser().parse_args(
+            [
+                "example.com",
+                "--deep",
+                "--depth",
+                "1",
+                "--max-pages",
+                "12",
+                "--no-check-links",
+            ]
+        )
+        settings = cli.resolve_scan_settings(args)
+
+        self.assertEqual(settings["preset"], "deep")
+        self.assertEqual(settings["depth"], 1)
+        self.assertEqual(settings["max_pages"], 12)
+        self.assertFalse(settings["check_links"])
+
+    def test_presets_are_mutually_exclusive(self):
+        parser = cli.build_parser()
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["example.com", "--quick", "--recon"])
+
+
 if __name__ == "__main__":
     unittest.main()
