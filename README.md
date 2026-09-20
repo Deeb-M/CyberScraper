@@ -1,228 +1,202 @@
-# CyberScraper
+# Scryx
 
-CyberScraper is a small Python command-line tool that extracts, normalizes, classifies, exports, and optionally crawls links from a web page. It is intended for learning, web analysis, and **authorized** cybersecurity reconnaissance.
+Scryx is a focused web reconnaissance CLI for authorized security testing. It is the next stage of the original CyberScraper project: the engine is being packaged as a real command-line tool that can be installed and used directly on Kali Linux without VS Code and without manually managing a virtual environment.
 
-## Features
+> Current development line: **v0.7**
+>
+> The repository is private while the Kali-focused workflow is being built and tested.
 
-- Fetches a target web page over HTTP or HTTPS
-- Extracts links from \`<a href="...">\` elements
-- Converts relative links into absolute URLs
-- Removes URL fragments and duplicates
-- Ignores placeholder ellipsis paths such as `/...` that are not real crawl targets
-- Classifies links as \`INTERNAL\` or \`EXTERNAL\`
-- Can restrict output to the target host
-- Can restrict internal links and crawl scope to a path prefix
-- Can exclude one or more noisy internal path prefixes from output and crawling
-- Can exclude file extensions such as PDF or ZIP from output and crawl requests
-- Can export filtered results to JSON or CSV
-- Supports bounded same-host crawling with depth 0–2
-- Limits crawl size with \`--max-pages\`
-- Adds a small delay between crawl requests
-- Handles request failures cleanly
-- Supports a configurable request timeout
+## Goal
 
-## Requirements
+The target user experience is simple:
 
-- Python 3.10+
-- \`requests\`
-- \`beautifulsoup4\`
+```bash
+scryx https://example.com
+```
 
-## Installation
+Advanced controls remain available when needed, but normal use should not require remembering long command chains.
 
-\`\`\`bash
+## Current capabilities
+
+- HTTP/HTTPS link discovery
+- Relative-to-absolute URL normalization
+- Duplicate and fragment removal
+- Internal/external classification
+- Same-host bounded crawling
+- Crawl depth and page caps
+- Path-prefix scope restriction
+- Path-prefix exclusions
+- File-extension exclusions
+- Request delay and timeout controls
+- Crawl error reporting
+- JSON and CSV export
+- Root URL canonicalization to avoid duplicate requests
+- Backward-compatible `cyberscraper.py` launcher
+
+## Kali installation — development build
+
+Kali users should use `pipx`. It creates and manages the isolated Python environment automatically, so the user does not need to activate a venv.
+
+Install the prerequisites:
+
+```bash
+sudo apt update
+sudo apt install -y git pipx
+pipx ensurepath
+```
+
+Clone the repository and install Scryx:
+
+```bash
 git clone https://github.com/Deeb-M/CyberScraper.git
 cd CyberScraper
+pipx install .
+```
+
+Verify the command:
+
+```bash
+scryx --version
+scryx --help
+```
+
+Then run a scan:
+
+```bash
+scryx https://example.com
+```
+
+Because the repository is currently private, cloning it requires access to the GitHub account that owns or has permission to the repository.
+
+## Developer installation
+
+For development on Windows, Linux, or macOS:
+
+```bash
 python -m venv .venv
-\`\`\`
+```
 
-Activate the virtual environment and install dependencies:
+Activate the environment, then install the package in editable mode:
 
-\`\`\`bash
-pip install -r requirements.txt
-\`\`\`
+```bash
+pip install -e .
+```
 
-## Usage
+The global-style development command is then:
 
-Scan one page:
+```bash
+scryx --version
+```
 
-\`\`\`bash
+The old launcher still works during the transition:
+
+```bash
 python cyberscraper.py https://example.com
-\`\`\`
+```
 
-Show only same-host links:
+## Usage examples
 
-\`\`\`bash
-python cyberscraper.py https://example.com --internal-only
-\`\`\`
+Basic scan:
 
-Restrict results to a project path:
+```bash
+scryx https://example.com
+```
 
-\`\`\`bash
-python cyberscraper.py https://github.com/Deeb-M/CyberScraper --internal-only --path-prefix /Deeb-M/CyberScraper
-\`\`\`
+Same-host output only:
 
-Crawl one level deeper while staying inside that path:
+```bash
+scryx https://example.com --internal-only
+```
 
-\`\`\`bash
-python cyberscraper.py https://github.com/Deeb-M/CyberScraper --depth 1 --max-pages 10 --internal-only --path-prefix /Deeb-M/CyberScraper
-\`\`\`
+Bounded crawl:
 
-Exclude noisy sections from both output and crawl requests:
+```bash
+scryx https://example.com --depth 1 --max-pages 10 --delay 0.5
+```
 
-\`\`\`bash
-python cyberscraper.py https://github.com/Deeb-M/CyberScraper --depth 1 --max-pages 10 --internal-only --path-prefix /Deeb-M/CyberScraper --exclude-path-prefix /Deeb-M/CyberScraper/actions --exclude-path-prefix /Deeb-M/CyberScraper/commit
-\`\`\`
+Restrict crawl scope to a path:
 
-Repeat `--exclude-path-prefix` for as many internal prefixes as needed.
+```bash
+scryx https://example.com/project --depth 1 --path-prefix /project
+```
 
-Exclude file types from output and crawling:
+Exclude noisy paths:
 
-\`\`\`bash
-python cyberscraper.py https://example.com --depth 1 --exclude-extension pdf --exclude-extension .zip
-\`\`\`
+```bash
+scryx https://example.com --depth 1 --exclude-path-prefix /archive --exclude-path-prefix /login
+```
 
-Extension matching is case-insensitive, and the leading dot is optional.
+Exclude file types:
 
-Crawl up to depth 2 with the default safety limits:
+```bash
+scryx https://example.com --depth 1 --exclude-extension pdf --exclude-extension zip
+```
 
-\`\`\`bash
-python cyberscraper.py https://example.com --depth 2
-\`\`\`
+Save a report:
 
-Adjust the delay between crawl requests:
+```bash
+scryx https://example.com --depth 1 --output results.json
+```
 
-\`\`\`bash
-python cyberscraper.py https://example.com --depth 1 --delay 0.5
-\`\`\`
+## Safety limits
 
-Save filtered results as JSON:
+Scryx currently keeps crawling deliberately bounded:
 
-\`\`\`bash
-python cyberscraper.py https://github.com/Deeb-M/CyberScraper --depth 1 --max-pages 10 --internal-only --path-prefix /Deeb-M/CyberScraper --output results.json
-\`\`\`
+- Default maximum pages: 25
+- Hard maximum pages: 100
+- Maximum crawl depth: 2
+- Default delay: 0.25 seconds
+- External hosts are reported but are not crawled
 
-Save filtered results as CSV:
-
-\`\`\`bash
-python cyberscraper.py https://github.com/Deeb-M/CyberScraper --internal-only --path-prefix /Deeb-M/CyberScraper --output results.csv
-\`\`\`
-
-Set a custom timeout:
-
-\`\`\`bash
-python cyberscraper.py https://example.com --timeout 5
-\`\`\`
-
-## Crawl behavior and limits
-
-\`--depth 0\` scans only the starting page. \`--depth 1\` scans the starting page plus eligible links found on it. \`--depth 2\` allows one additional level.
-
-CyberScraper never crawls external hosts. External links can still be reported, but only same-host links are eligible for additional requests. If \`--path-prefix\` is supplied, the crawler also stays inside that path. Any prefix supplied with \`--exclude-path-prefix\` is removed from the displayed internal results and is never queued for deeper crawling. Extensions supplied with \`--exclude-extension\` are filtered from both internal and external output, and matching internal links are not queued for crawling.
-
-The default crawl cap is 25 pages and the hard maximum is 100 pages. The default delay between crawl requests is 0.25 seconds.
-
-Example terminal summary:
-
-\`\`\`text
-[+] Attempted 5 page(s)
-[+] Successfully scanned 4 page(s)
-[+] Found 137 unique link(s)
-[+] Showing 54 link(s) after filters
-
-[CRAWL ERRORS] (1)
-- https://example.com/unavailable
-  404 Client Error: Not Found
-
-[INTERNAL] (54)
-...
-\`\`\`
-
-Failed crawl requests do not stop the rest of the crawl. Their URL and error reason are shown in the terminal and included in JSON export.
-
-## JSON export
-
-JSON includes scan metadata, active filters, crawl information, counts, errors, and categorized links.
-
-\`\`\`json
-{
-  "requested_url": "https://example.com",
-  "final_url": "https://example.com/",
-  "total_found": 8,
-  "total_shown": 5,
-  "filters": {
-    "internal_only": false,
-    "path_prefix": null,
-    "exclude_path_prefixes": [],
-    "exclude_extensions": [".pdf", ".zip"]
-  },
-  "crawl": {
-    "depth": 1,
-    "pages_attempted": 3,
-    "pages_scanned": 2,
-    "failed_requests": 1,
-    "max_pages": 25,
-    "errors": [
-      {
-        "url": "https://example.com/unavailable",
-        "error": "404 Client Error: Not Found"
-      }
-    ]
-  },
-  "links": {
-    "internal": [],
-    "external": []
-  }
-}
-\`\`\`
-
-## CSV export
-
-CSV contains one row per visible result:
-
-\`\`\`text
-category,url
-INTERNAL,https://example.com/about
-EXTERNAL,https://status.example.net/
-\`\`\`
+These limits are intentional while the tool is developed and validated for authorized reconnaissance.
 
 ## Testing
 
-Run the automated test suite locally with:
+Run locally:
 
-\`\`\`bash
+```bash
 python -m unittest discover -s tests -v
-\`\`\`
+```
 
-GitHub Actions runs syntax checks and unit tests automatically for pull requests and pushes to \`main\`.
+GitHub Actions installs the package and verifies the `scryx` entry point on Python 3.10, 3.12, and 3.13.
 
 ## Project structure
 
-\`\`\`text
+```text
 CyberScraper/
 ├── .github/
 │   └── workflows/
 │       └── tests.yml
+├── scryx/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── cli.py
+│   └── core.py
 ├── tests/
+│   ├── test_cli.py
 │   └── test_cyberscraper.py
 ├── cyberscraper.py
+├── pyproject.toml
 ├── requirements.txt
 ├── README.md
-├── LICENSE
-└── .gitignore
-\`\`\`
+└── LICENSE
+```
+
+## v0.7 milestone
+
+The v0.7 milestone is complete when a fresh Kali installation can:
+
+1. install Scryx with `pipx`,
+2. run `scryx --version`,
+3. run `scryx https://example.com`,
+4. use the tool without VS Code or manual venv activation.
+
+The next milestone will focus on recon presets and a more complete URL-analysis workflow instead of adding arbitrary flags.
 
 ## Responsible use
 
-Use CyberScraper only on websites you own or where you have explicit permission to perform testing or reconnaissance. Respect applicable laws, terms of service, robots policies, rate limits, and the target's infrastructure.
-
-## Roadmap
-
-Planned improvements include:
-
-- Better logging
-- Optional robots.txt awareness
-- Expand automated test coverage
+Use Scryx only on systems you own or where you have explicit permission to perform reconnaissance or security testing. Respect scope, rate limits, target infrastructure, and applicable rules.
 
 ## License
 
-This project is released under the MIT License.
+MIT License.

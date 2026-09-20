@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
-import cyberscraper
+from scryx import core as cyberscraper
 
 
 class NormalizeUrlTests(unittest.TestCase):
@@ -196,8 +196,8 @@ class ClassificationTests(unittest.TestCase):
 
 
 class CrawlTests(unittest.TestCase):
-    @patch("cyberscraper.time.sleep")
-    @patch("cyberscraper.scrape")
+    @patch("scryx.core.time.sleep")
+    @patch("scryx.core.scrape")
     def test_depth_one_crawls_only_internal_matching_scope(self, mock_scrape, mock_sleep):
         responses = {
             "https://example.com/project": (
@@ -242,7 +242,7 @@ class CrawlTests(unittest.TestCase):
         self.assertNotIn("https://external.test/page", requested_urls)
         mock_sleep.assert_called_once()
 
-    @patch("cyberscraper.scrape")
+    @patch("scryx.core.scrape")
     def test_excluded_path_is_not_crawled(self, mock_scrape):
         mock_scrape.side_effect = [
             (
@@ -274,7 +274,7 @@ class CrawlTests(unittest.TestCase):
         )
         self.assertEqual(len(pages), 2)
 
-    @patch("cyberscraper.scrape")
+    @patch("scryx.core.scrape")
     def test_excluded_extension_is_not_crawled(self, mock_scrape):
         mock_scrape.side_effect = [
             (
@@ -306,7 +306,7 @@ class CrawlTests(unittest.TestCase):
         )
         self.assertEqual(len(pages), 2)
 
-    @patch("cyberscraper.scrape")
+    @patch("scryx.core.scrape")
     def test_root_url_with_and_without_trailing_slash_is_requested_once(self, mock_scrape):
         mock_scrape.return_value = (
             ["https://example.com/"],
@@ -330,7 +330,7 @@ class CrawlTests(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(links, ["https://example.com/"])
 
-    @patch("cyberscraper.scrape")
+    @patch("scryx.core.scrape")
     def test_max_pages_stops_crawl(self, mock_scrape):
         mock_scrape.side_effect = [
             (
@@ -353,7 +353,7 @@ class CrawlTests(unittest.TestCase):
         self.assertEqual(len(pages), 2)
         self.assertEqual(mock_scrape.call_count, 2)
 
-    @patch("cyberscraper.scrape")
+    @patch("scryx.core.scrape")
     def test_secondary_request_errors_are_recorded(self, mock_scrape):
         mock_scrape.side_effect = [
             (["https://example.com/a"], "https://example.com/"),
@@ -474,7 +474,7 @@ class ExportTests(unittest.TestCase):
 
 
 class ScrapeTests(unittest.TestCase):
-    @patch("cyberscraper.requests.get")
+    @patch("scryx.core.requests.get")
     def test_scrape_uses_timeout_and_response_url(self, mock_get):
         response = MagicMock()
         response.text = '<a href="/final">Final</a>'
@@ -493,7 +493,7 @@ class ScrapeTests(unittest.TestCase):
         )
         response.raise_for_status.assert_called_once_with()
 
-    @patch("cyberscraper.requests.get")
+    @patch("scryx.core.requests.get")
     def test_scrape_propagates_request_errors(self, mock_get):
         mock_get.side_effect = requests.RequestException("network unavailable")
 
