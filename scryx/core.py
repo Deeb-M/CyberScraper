@@ -355,6 +355,7 @@ def crawl(
     queue: deque[tuple[str, int]] = deque([(start_url, 0)])
     queued: set[str] = {start_url}
     visited: set[str] = set()
+    resolved: set[str] = set()
     discovered: set[str] = set()
     errors: list[tuple[str, str]] = []
     first_final_url: str | None = None
@@ -362,7 +363,7 @@ def crawl(
     while queue and len(visited) < max_pages:
         current_url, current_depth = queue.popleft()
         queued.discard(current_url)
-        if current_url in visited:
+        if current_url in visited or current_url in resolved:
             continue
 
         visited.add(current_url)
@@ -380,6 +381,7 @@ def crawl(
             continue
 
         final_url = canonical_crawl_url(final_url)
+        resolved.add(final_url)
 
         if first_final_url is None:
             first_final_url = final_url
@@ -411,7 +413,11 @@ def crawl(
                 continue
 
             crawl_link = canonical_crawl_url(link)
-            if crawl_link not in visited and crawl_link not in queued:
+            if (
+                crawl_link not in visited
+                and crawl_link not in resolved
+                and crawl_link not in queued
+            ):
                 queue.append((crawl_link, current_depth + 1))
                 queued.add(crawl_link)
 
