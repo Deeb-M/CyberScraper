@@ -1,5 +1,6 @@
 import io
 import unittest
+from pathlib import Path
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
@@ -115,6 +116,30 @@ class ReportingCliTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("Could not save scan bundle", output)
         self.assertIn("denied", output)
+
+    @patch(
+        "scryx.cli.save_scan_bundle",
+        return_value=Path("scryx-scans/example_scan"),
+    )
+    @patch(
+        "scryx.cli.scrape",
+        return_value=([], "https://example.com/"),
+    )
+    def test_report_output_lists_generated_file_paths(
+        self,
+        _mock_scrape,
+        _mock_save_bundle,
+    ):
+        with patch("sys.argv", ["scryx", "example.com", "--report"]):
+            with io.StringIO() as buffer, redirect_stdout(buffer):
+                code = cli.main()
+                output = buffer.getvalue()
+
+        self.assertEqual(code, 0)
+        self.assertIn("Saved scan bundle to scryx-scans/example_scan", output)
+        self.assertIn("scryx-scans/example_scan/report.json", output)
+        self.assertIn("scryx-scans/example_scan/links.csv", output)
+        self.assertIn("scryx-scans/example_scan/summary.txt", output)
 
     def test_report_flag_uses_default_bundle_location(self):
         args = cli.build_parser().parse_args(["example.com", "--report"])
