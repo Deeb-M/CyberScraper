@@ -8,6 +8,7 @@ CyberScraper is a small Python command-line tool that extracts, normalizes, clas
 - Extracts links from \`<a href="...">\` elements
 - Converts relative links into absolute URLs
 - Removes URL fragments and duplicates
+- Ignores placeholder ellipsis paths such as `/...` that are not real crawl targets
 - Classifies links as \`INTERNAL\` or \`EXTERNAL\`
 - Can restrict output to the target host
 - Can restrict internal links and crawl scope to a path prefix
