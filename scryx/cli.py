@@ -24,11 +24,14 @@ from .core import (
     scrape,
 )
 
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Scryx - focused web reconnaissance for authorized security work."
+        prog="scryx",
+        description="Scryx - focused web reconnaissance for authorized security work.",
     )
-    parser.add_argument("url", nargs="?", help="Target page URL, e.g. https://example.com")\n    parser.add_argument("--version", action="version", version=f"Scryx {__version__}")
+    parser.add_argument("url", nargs="?", help="Target page URL, e.g. https://example.com")
+    parser.add_argument("--version", action="version", version=f"Scryx {__version__}")
     parser.add_argument(
         "--internal-only",
         action="store_true",
@@ -36,28 +39,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--path-prefix",
-        help=(
-            "Restrict internal links and crawl scope to one path prefix, "
-            "for example /Deeb-M/CyberScraper."
-        ),
+        help="Restrict internal links and crawl scope to one path prefix.",
     )
     parser.add_argument(
         "--exclude-path-prefix",
         action="append",
         default=[],
-        help=(
-            "Exclude an internal path prefix from output and crawling. "
-            "Repeat the option to exclude multiple prefixes."
-        ),
+        help="Exclude an internal path prefix. Repeat to exclude multiple prefixes.",
     )
     parser.add_argument(
         "--exclude-extension",
         action="append",
         default=[],
-        help=(
-            "Exclude links ending with a file extension, for example pdf or .zip. "
-            "Repeat the option to exclude multiple extensions."
-        ),
+        help="Exclude a file extension such as pdf or .zip. Repeat as needed.",
     )
     parser.add_argument(
         "--depth",
@@ -71,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-pages",
         type=int,
         default=DEFAULT_MAX_PAGES,
-        help=f"Maximum pages to request during crawling (default: {DEFAULT_MAX_PAGES}, max: {MAX_PAGE_LIMIT}).",
+        help=f"Maximum pages to request (default: {DEFAULT_MAX_PAGES}, max: {MAX_PAGE_LIMIT}).",
     )
     parser.add_argument(
         "--delay",
@@ -79,10 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_DELAY,
         help=f"Delay in seconds between crawl requests (default: {DEFAULT_DELAY}).",
     )
-    parser.add_argument(
-        "--output",
-        help="Save filtered results to a .json or .csv file.",
-    )
+    parser.add_argument("--output", help="Save filtered results to a .json or .csv file.")
     parser.add_argument(
         "--timeout",
         type=int,
@@ -93,8 +84,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
 
+    if not args.url:
+        parser.print_help()
+        return 2
     if not 1 <= args.max_pages <= MAX_PAGE_LIMIT:
         print(f"[!] --max-pages must be between 1 and {MAX_PAGE_LIMIT}")
         return 2
@@ -148,7 +143,6 @@ def main() -> int:
     print(f"[+] Showing {visible_total} link(s) after filters")
 
     print_crawl_errors(crawl_errors)
-
     print_group("INTERNAL", internal)
     if not args.internal_only:
         print_group("EXTERNAL", external)
