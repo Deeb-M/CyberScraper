@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1
+
+Small usability patch for report bundles.
+
+- Prints the exact generated paths for `report.json`, `links.csv`, and `summary.txt` after `--report` or `--report-dir`.
+- Adds CLI regression coverage for the generated-file path output.
+- No crawling, scope, HTTP-check, or report-content behavior changes.
+
 ## 1.0.0
 
 First stable Scryx release.
