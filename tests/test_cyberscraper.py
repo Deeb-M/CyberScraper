@@ -32,6 +32,20 @@ class NormalizeUrlTests(unittest.TestCase):
         )
 
 
+class CanonicalUrlTests(unittest.TestCase):
+    def test_root_url_gets_trailing_slash_for_crawl_deduplication(self):
+        self.assertEqual(
+            cyberscraper.canonical_crawl_url("HTTPS://Example.COM"),
+            "https://example.com/",
+        )
+
+    def test_fragment_is_removed_from_crawl_key(self):
+        self.assertEqual(
+            cyberscraper.canonical_crawl_url("https://example.com/path#section"),
+            "https://example.com/path",
+        )
+
+
 class ExtractLinksTests(unittest.TestCase):
     def setUp(self):
         self.html = """
@@ -291,6 +305,30 @@ class CrawlTests(unittest.TestCase):
             ],
         )
         self.assertEqual(len(pages), 2)
+
+    @patch("cyberscraper.scrape")
+    def test_root_url_with_and_without_trailing_slash_is_requested_once(self, mock_scrape):
+        mock_scrape.return_value = (
+            ["https://example.com/"],
+            "https://example.com/",
+        )
+
+        links, final_url, pages, errors = cyberscraper.crawl(
+            "https://example.com",
+            depth=1,
+            max_pages=5,
+            delay=0,
+        )
+
+        self.assertEqual(mock_scrape.call_count, 1)
+        self.assertEqual(
+            mock_scrape.call_args_list[0].args[0],
+            "https://example.com/",
+        )
+        self.assertEqual(pages, ["https://example.com/"])
+        self.assertEqual(final_url, "https://example.com/")
+        self.assertEqual(errors, [])
+        self.assertEqual(links, ["https://example.com/"])
 
     @patch("cyberscraper.scrape")
     def test_max_pages_stops_crawl(self, mock_scrape):

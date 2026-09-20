@@ -19,7 +19,7 @@ DEFAULT_DELAY = 0.25
 DEFAULT_MAX_PAGES = 25
 MAX_CRAWL_DEPTH = 2
 MAX_PAGE_LIMIT = 100
-USER_AGENT = "CyberScraper/0.6 (+authorized-security-research)"
+USER_AGENT = "CyberScraper/0.6.1 (+authorized-security-research)"
 
 
 def normalize_url(base_url: str, href: str) -> str | None:
@@ -40,6 +40,17 @@ def normalize_url(base_url: str, href: str) -> str | None:
         return None
 
     return clean
+
+
+def canonical_crawl_url(url: str) -> str:
+    """Return a canonical URL used for crawl queue deduplication."""
+    clean, _fragment = urldefrag(url)
+    parsed = urlparse(clean)
+    return parsed._replace(
+        scheme=parsed.scheme.lower(),
+        netloc=parsed.netloc.lower(),
+        path=parsed.path or "/",
+    ).geturl()
 
 
 def extract_links(html: str, base_url: str) -> list[str]:
@@ -162,7 +173,8 @@ def crawl(
     External links are collected but never requested. When path_prefix is set,
     only matching internal links are eligible for additional requests.
     """
-    queue: deque[tuple[str, int]] = deque([(url, 0)])
+    start_url = canonical_crawl_url(url)
+    queue: deque[tuple[str, int]] = deque([(start_url, 0)])
     visited: set[str] = set()
     discovered: set[str] = set()
     errors: list[tuple[str, str]] = []
@@ -178,10 +190,12 @@ def crawl(
         try:
             links, final_url = scrape(current_url, timeout=timeout)
         except requests.RequestException as exc:
-            if current_url == url and first_final_url is None:
+            if current_url == start_url and first_final_url is None:
                 raise
             errors.append((current_url, str(exc)))
             continue
+
+        final_url = canonical_crawl_url(final_url)
 
         if first_final_url is None:
             first_final_url = final_url
@@ -200,13 +214,14 @@ def crawl(
                 continue
             if has_excluded_extension(link, exclude_extensions):
                 continue
-            if link not in visited:
-                queue.append((link, current_depth + 1))
+            crawl_link = canonical_crawl_url(link)
+            if crawl_link not in visited:
+                queue.append((crawl_link, current_depth + 1))
 
         if delay > 0 and queue and len(visited) < max_pages:
             time.sleep(delay)
 
-    return sorted(discovered), first_final_url or url, sorted(visited), errors
+    return sorted(discovered), first_final_url or start_url, sorted(visited), errors
 
 
 def print_group(title: str, links: list[str]) -> None:
