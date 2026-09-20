@@ -1,6 +1,6 @@
 # CyberScraper
 
-CyberScraper is a small Python command-line tool that extracts, normalizes, and classifies links from a web page. It is intended for learning, web analysis, and **authorized** cybersecurity reconnaissance.
+CyberScraper is a small Python command-line tool that extracts, normalizes, classifies, and exports links from a web page. It is intended for learning, web analysis, and **authorized** cybersecurity reconnaissance.
 
 ## Features
 
@@ -11,6 +11,7 @@ CyberScraper is a small Python command-line tool that extracts, normalizes, and 
 - Classifies links as `INTERNAL` or `EXTERNAL`
 - Can restrict output to the target host
 - Can restrict internal links to a specific path prefix
+- Can export filtered results to JSON or CSV
 - Handles common request failures cleanly
 - Supports a configurable request timeout
 
@@ -60,13 +61,25 @@ Combine both filters:
 python cyberscraper.py https://github.com/Deeb-M/CyberScraper --internal-only --path-prefix /Deeb-M/CyberScraper
 ```
 
+Save the filtered results as JSON:
+
+```bash
+python cyberscraper.py https://github.com/Deeb-M/CyberScraper --internal-only --path-prefix /Deeb-M/CyberScraper --output results.json
+```
+
+Save the filtered results as CSV:
+
+```bash
+python cyberscraper.py https://github.com/Deeb-M/CyberScraper --internal-only --path-prefix /Deeb-M/CyberScraper --output results.csv
+```
+
 Set a custom timeout:
 
 ```bash
 python cyberscraper.py https://example.com --timeout 5
 ```
 
-Example output:
+Example terminal output:
 
 ```text
 [+] Found 8 unique link(s)
@@ -80,6 +93,39 @@ https://example.com/login
 [EXTERNAL] (2)
 https://docs.example.net/
 https://status.example.net/
+
+[+] Saved JSON results to results.json
+```
+
+### JSON export
+
+JSON includes scan metadata, active filters, counts, and categorized links.
+
+```json
+{
+  "requested_url": "https://example.com",
+  "final_url": "https://example.com/",
+  "total_found": 8,
+  "total_shown": 5,
+  "filters": {
+    "internal_only": false,
+    "path_prefix": null
+  },
+  "links": {
+    "internal": [],
+    "external": []
+  }
+}
+```
+
+### CSV export
+
+CSV contains one row per visible result:
+
+```text
+category,url
+INTERNAL,https://example.com/about
+EXTERNAL,https://status.example.net/
 ```
 
 ## Testing
@@ -116,7 +162,6 @@ Use CyberScraper only on websites you own or where you have explicit permission 
 
 Planned improvements include:
 
-- Export results to JSON or CSV
 - Basic crawl-depth support
 - Domain and extension filters
 - Better logging

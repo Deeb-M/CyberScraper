@@ -4,13 +4,16 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import json
+from pathlib import Path
 from urllib.parse import urljoin, urlparse, urldefrag
 
 import requests
 from bs4 import BeautifulSoup
 
 DEFAULT_TIMEOUT = 10
-USER_AGENT = "CyberScraper/0.2 (+authorized-security-research)"
+USER_AGENT = "CyberScraper/0.3 (+authorized-security-research)"
 
 
 def normalize_url(base_url: str, href: str) -> str | None:
@@ -105,6 +108,66 @@ def print_group(title: str, links: list[str]) -> None:
         print(link)
 
 
+def build_report(
+    requested_url: str,
+    final_url: str,
+    all_links: list[str],
+    internal: list[str],
+    external: list[str],
+    internal_only: bool,
+    path_prefix: str | None,
+) -> dict:
+    """Build a serializable report for JSON/CSV export."""
+    visible_external = [] if internal_only else external
+    return {
+        "requested_url": requested_url,
+        "final_url": final_url,
+        "total_found": len(all_links),
+        "total_shown": len(internal) + len(visible_external),
+        "filters": {
+            "internal_only": internal_only,
+            "path_prefix": path_prefix,
+        },
+        "links": {
+            "internal": internal,
+            "external": visible_external,
+        },
+    }
+
+
+def output_format_for_path(path: str | Path) -> str:
+    """Infer the export format from the output filename."""
+    suffix = Path(path).suffix.lower()
+    if suffix == ".json":
+        return "json"
+    if suffix == ".csv":
+        return "csv"
+    raise ValueError("Output file must end with .json or .csv")
+
+
+def save_report(path: str | Path, report: dict) -> str:
+    """Save a report as JSON or CSV and return the selected format."""
+    output_path = Path(path)
+    output_format = output_format_for_path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if output_format == "json":
+        output_path.write_text(
+            json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        return output_format
+
+    with output_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["category", "url"])
+        writer.writeheader()
+        for category in ("internal", "external"):
+            for link in report["links"][category]:
+                writer.writerow({"category": category.upper(), "url": link})
+
+    return output_format
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Extract and classify links from a web page for authorized reconnaissance."
@@ -123,6 +186,10 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--output",
+        help="Save filtered results to a .json or .csv file.",
+    )
+    parser.add_argument(
         "--timeout",
         type=int,
         default=DEFAULT_TIMEOUT,
@@ -133,6 +200,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
+
+    if args.output:
+        try:
+            output_format_for_path(args.output)
+        except ValueError as exc:
+            print(f"[!] {exc}")
+            return 2
 
     try:
         links, final_url = scrape(args.url, timeout=args.timeout)
@@ -153,6 +227,19 @@ def main() -> int:
     print_group("INTERNAL", internal)
     if not args.internal_only:
         print_group("EXTERNAL", external)
+
+    if args.output:
+        report = build_report(
+            requested_url=args.url,
+            final_url=final_url,
+            all_links=links,
+            internal=internal,
+            external=external,
+            internal_only=args.internal_only,
+            path_prefix=args.path_prefix,
+        )
+        output_format = save_report(args.output, report)
+        print(f"\n[+] Saved {output_format.upper()} results to {args.output}")
 
     return 0
 
