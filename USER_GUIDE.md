@@ -1,6 +1,6 @@
 # Scryx User Guide
 
-This guide explains how to use Scryx v1.0.0 in normal authorized reconnaissance workflows.
+This guide explains how to use Scryx v1.0.1 in normal authorized reconnaissance workflows.
 
 > Use Scryx only on systems you own or where you have explicit permission to perform reconnaissance or security testing.
 
@@ -28,7 +28,7 @@ scryx --help
 Expected stable version:
 
 ```text
-Scryx 1.0.0
+Scryx 1.0.1
 ```
 
 ## 2. Basic syntax
@@ -404,6 +404,8 @@ report.json
 links.csv
 summary.txt
 ```
+
+After saving a bundle, Scryx prints the exact path to the scan directory and the exact path to each of these three files, so you can copy a path directly into commands such as `cat`, `less`, or another analysis tool.
 
 ### Choose another report directory
 
