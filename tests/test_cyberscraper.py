@@ -239,7 +239,9 @@ class ExportTests(unittest.TestCase):
             saved = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(saved["total_found"], 2)
             self.assertEqual(saved["crawl"]["depth"], 1)
+            self.assertEqual(saved["crawl"]["pages_attempted"], 2)
             self.assertEqual(saved["crawl"]["pages_scanned"], 2)
+            self.assertEqual(saved["crawl"]["failed_requests"], 0)
             self.assertEqual(saved["links"]["internal"], ["https://example.com/about"])
             self.assertEqual(saved["links"]["external"], ["https://external.test/page"])
 
@@ -259,6 +261,29 @@ class ExportTests(unittest.TestCase):
                     {"category": "EXTERNAL", "url": "https://external.test/page"},
                 ],
             )
+
+    def test_report_counts_failed_requests_separately(self):
+        report = cyberscraper.build_report(
+            requested_url="https://example.com",
+            final_url="https://example.com/",
+            all_links=["https://example.com/about"],
+            internal=["https://example.com/about"],
+            external=[],
+            internal_only=True,
+            path_prefix=None,
+            depth=1,
+            pages_scanned=3,
+            max_pages=5,
+            crawl_errors=[("https://example.com/bad", "404 Client Error")],
+        )
+
+        self.assertEqual(report["crawl"]["pages_attempted"], 3)
+        self.assertEqual(report["crawl"]["pages_scanned"], 2)
+        self.assertEqual(report["crawl"]["failed_requests"], 1)
+        self.assertEqual(
+            report["crawl"]["errors"],
+            [{"url": "https://example.com/bad", "error": "404 Client Error"}],
+        )
 
     def test_internal_only_report_omits_external_links(self):
         report = cyberscraper.build_report(
