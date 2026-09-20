@@ -379,6 +379,37 @@ class CrawlTests(unittest.TestCase):
         self.assertEqual(len(pages), 2)
         self.assertEqual(mock_scrape.call_count, 2)
 
+    @patch("scryx.core.time.sleep")
+    @patch("scryx.core.scrape")
+    def test_delay_is_preserved_after_secondary_request_error(
+        self,
+        mock_scrape,
+        mock_sleep,
+    ):
+        mock_scrape.side_effect = [
+            (
+                [
+                    "https://example.com/a",
+                    "https://example.com/b",
+                ],
+                "https://example.com/",
+            ),
+            requests.RequestException("blocked"),
+            ([], "https://example.com/b"),
+        ]
+
+        _links, _final_url, pages, errors = cyberscraper.crawl(
+            "https://example.com/",
+            depth=1,
+            max_pages=5,
+            delay=0.2,
+        )
+
+        self.assertEqual(len(pages), 3)
+        self.assertEqual(errors, [("https://example.com/a", "blocked")])
+        self.assertEqual(mock_sleep.call_count, 2)
+        mock_sleep.assert_any_call(0.2)
+
     @patch("scryx.core.scrape")
     def test_secondary_request_errors_are_recorded(self, mock_scrape):
         mock_scrape.side_effect = [
@@ -522,6 +553,35 @@ class ScrapeTests(unittest.TestCase):
         )
         response.raise_for_status.assert_called_once_with()
         response.close.assert_called_once_with()
+
+    @patch("scryx.core.requests.get")
+    def test_scrape_skips_non_html_response_body(self, mock_get):
+        response = MagicMock()
+        response.text = '<a href="/should-not-be-parsed">Ignore</a>'
+        response.status_code = 200
+        response.headers = {"Content-Type": "application/pdf"}
+        response.raise_for_status.return_value = None
+        mock_get.return_value = response
+
+        links, final_url = cyberscraper.scrape("https://example.com/report")
+
+        self.assertEqual(links, [])
+        self.assertEqual(final_url, "https://example.com/report")
+        response.close.assert_called_once_with()
+
+    @patch("scryx.core.requests.get")
+    def test_scrape_accepts_html_content_type_with_charset(self, mock_get):
+        response = MagicMock()
+        response.text = '<a href="/next">Next</a>'
+        response.status_code = 200
+        response.headers = {"Content-Type": "text/html; charset=utf-8"}
+        response.raise_for_status.return_value = None
+        mock_get.return_value = response
+
+        links, final_url = cyberscraper.scrape("https://example.com/start")
+
+        self.assertEqual(links, ["https://example.com/next"])
+        self.assertEqual(final_url, "https://example.com/start")
 
     @patch("scryx.core.requests.get")
     def test_scrape_propagates_request_errors(self, mock_get):
