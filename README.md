@@ -107,8 +107,8 @@ pipx ensurepath
 Clone and install:
 
 ```bash
-git clone https://github.com/Deeb-M/CyberScraper.git
-cd CyberScraper
+git clone https://github.com/Deeb-M/Scryx.git
+cd Scryx
 pipx install .
 ```
 
