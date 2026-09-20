@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Scryx generated scan artifacts
+scryx-scans/
+scryx-rc.json
+*_scan.json
+*_links.csv
