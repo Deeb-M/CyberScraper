@@ -216,7 +216,9 @@ class CrawlTests(unittest.TestCase):
                 "https://example.com/project/a",
             ),
         }
-        mock_scrape.side_effect = lambda url, timeout=10: responses[url]
+        mock_scrape.side_effect = (
+            lambda url, timeout=10, path_prefix=None: responses[url]
+        )
 
         links, final_url, pages, errors = cyberscraper.crawl(
             "https://example.com/project",
@@ -478,20 +480,24 @@ class ScrapeTests(unittest.TestCase):
     def test_scrape_uses_timeout_and_response_url(self, mock_get):
         response = MagicMock()
         response.text = '<a href="/final">Final</a>'
-        response.url = "https://example.com/redirected"
+        response.status_code = 200
+        response.headers = {}
         response.raise_for_status.return_value = None
         mock_get.return_value = response
 
         links, final_url = cyberscraper.scrape("https://example.com", timeout=7)
 
         self.assertEqual(links, ["https://example.com/final"])
-        self.assertEqual(final_url, "https://example.com/redirected")
+        self.assertEqual(final_url, "https://example.com/")
         mock_get.assert_called_once_with(
-            "https://example.com",
+            "https://example.com/",
             headers={"User-Agent": cyberscraper.USER_AGENT},
             timeout=7,
+            allow_redirects=False,
+            stream=False,
         )
         response.raise_for_status.assert_called_once_with()
+        response.close.assert_called_once_with()
 
     @patch("scryx.core.requests.get")
     def test_scrape_propagates_request_errors(self, mock_get):
@@ -535,21 +541,22 @@ class HttpCheckTests(unittest.TestCase):
     @patch("scryx.core.requests.get")
     def test_status_check_records_redirect_and_closes_response(self, mock_get):
         response = MagicMock()
-        response.url = "https://example.com/final"
         response.status_code = 200
+        response.headers = {}
         mock_get.return_value = response
 
         result = cyberscraper.check_http_status("https://example.com/start", timeout=6)
 
         self.assertEqual(result["status"], 200)
-        self.assertTrue(result["redirected"])
+        self.assertFalse(result["redirected"])
+        self.assertIsNone(result["blocked_redirect"])
         self.assertFalse(result["broken"])
         self.assertIsNone(result["error"])
         mock_get.assert_called_once_with(
             "https://example.com/start",
             headers={"User-Agent": cyberscraper.USER_AGENT},
             timeout=6,
-            allow_redirects=True,
+            allow_redirects=False,
             stream=True,
         )
         response.close.assert_called_once_with()
@@ -611,6 +618,74 @@ class CrawlScopeHardeningTests(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("redirect escaped host scope", errors[0][1])
         self.assertEqual(mock_scrape.call_count, 2)
+
+
+class RedirectHardeningTests(unittest.TestCase):
+    @patch("scryx.core.requests.get")
+    def test_scrape_follows_same_host_redirect(self, mock_get):
+        redirect = MagicMock()
+        redirect.status_code = 301
+        redirect.headers = {"Location": "/final"}
+
+        final = MagicMock()
+        final.status_code = 200
+        final.headers = {}
+        final.text = '<a href="/next">Next</a>'
+        final.raise_for_status.return_value = None
+
+        mock_get.side_effect = [redirect, final]
+
+        links, final_url = cyberscraper.scrape("https://example.com/start")
+
+        self.assertEqual(final_url, "https://example.com/final")
+        self.assertEqual(links, ["https://example.com/next"])
+        self.assertEqual(mock_get.call_count, 2)
+        redirect.close.assert_called_once_with()
+        final.close.assert_called_once_with()
+
+    @patch("scryx.core.requests.get")
+    def test_scrape_blocks_cross_host_redirect_before_requesting_destination(self, mock_get):
+        redirect = MagicMock()
+        redirect.status_code = 302
+        redirect.headers = {"Location": "https://outside.test/landing"}
+        mock_get.return_value = redirect
+
+        with self.assertRaises(requests.RequestException) as exc:
+            cyberscraper.scrape("https://example.com/start")
+
+        self.assertIn("redirect escaped scope", str(exc.exception))
+        self.assertEqual(mock_get.call_count, 1)
+        redirect.close.assert_called_once_with()
+
+    @patch("scryx.core.requests.get")
+    def test_http_check_reports_cross_host_redirect_as_blocked(self, mock_get):
+        redirect = MagicMock()
+        redirect.status_code = 302
+        redirect.headers = {"Location": "https://outside.test/landing"}
+        mock_get.return_value = redirect
+
+        result = cyberscraper.check_http_status("https://example.com/start")
+
+        self.assertEqual(result["status"], 302)
+        self.assertTrue(result["redirected"])
+        self.assertEqual(
+            result["blocked_redirect"],
+            "https://outside.test/landing",
+        )
+        self.assertFalse(result["broken"])
+        self.assertEqual(mock_get.call_count, 1)
+
+    def test_malformed_html_still_yields_valid_links(self):
+        html = '<html><body><a href="/ok"><b>Open<a href="/second">Second'
+        links = cyberscraper.extract_links(html, "https://example.com")
+
+        self.assertEqual(
+            links,
+            [
+                "https://example.com/ok",
+                "https://example.com/second",
+            ],
+        )
 
 
 if __name__ == "__main__":
