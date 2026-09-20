@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scryx-recon"
+version = "0.7.0"
+description = "A focused web reconnaissance CLI for authorized security work."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+  "requests>=2.32,<3",
+  "beautifulsoup4>=4.12,<5",
+]
+keywords = ["cybersecurity", "reconnaissance", "crawler", "kali", "cli"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Topic :: Security",
+]
+
+[project.urls]
+Repository = "https://github.com/Deeb-M/CyberScraper"
+
+[project.scripts]
+scryx = "scryx.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["scryx*"]
