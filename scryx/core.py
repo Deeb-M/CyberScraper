@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Core crawling, filtering, and export logic for Scryx."""
+"""Core crawling, filtering, analysis, and export logic for Scryx."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import json
 import time
 from collections import deque
 from pathlib import Path
-from urllib.parse import urljoin, urlparse, urldefrag
+from urllib.parse import parse_qsl, urljoin, urlparse, urldefrag
 
 import requests
 from bs4 import BeautifulSoup
@@ -16,9 +16,62 @@ from bs4 import BeautifulSoup
 DEFAULT_TIMEOUT = 10
 DEFAULT_DELAY = 0.25
 DEFAULT_MAX_PAGES = 25
+DEFAULT_CHECK_LIMIT = 25
 MAX_CRAWL_DEPTH = 2
 MAX_PAGE_LIMIT = 100
-USER_AGENT = "Scryx/0.7.0 (+authorized-security-research)"
+MAX_CHECK_LIMIT = 50
+USER_AGENT = "Scryx/0.8.0 (+authorized-security-research)"
+
+STATIC_ASSET_EXTENSIONS = {
+    ".7z",
+    ".avi",
+    ".bmp",
+    ".css",
+    ".csv",
+    ".eot",
+    ".gif",
+    ".gz",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".js",
+    ".map",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".pdf",
+    ".png",
+    ".svg",
+    ".tar",
+    ".tgz",
+    ".ttf",
+    ".txt",
+    ".webm",
+    ".webp",
+    ".woff",
+    ".woff2",
+    ".xml",
+    ".zip",
+}
+
+
+def prepare_target_url(value: str) -> str:
+    """Normalize a CLI target and default a missing scheme to HTTPS."""
+    target = value.strip()
+    if not target:
+        raise ValueError("Target URL cannot be empty")
+
+    if "://" not in target:
+        target = f"https://{target}"
+
+    parsed = urlparse(target)
+    if parsed.scheme.lower() not in {"http", "https"}:
+        raise ValueError("Target URL must use http:// or https://")
+    if not parsed.netloc:
+        raise ValueError("Target URL must include a host")
+
+    return parsed._replace(scheme=parsed.scheme.lower()).geturl()
 
 
 def normalize_url(base_url: str, href: str) -> str | None:
@@ -149,6 +202,55 @@ def classify_links(
     return internal, external
 
 
+def query_parameters(url: str) -> list[str]:
+    """Return sorted unique query-parameter names from a URL."""
+    return sorted({key for key, _value in parse_qsl(urlparse(url).query, keep_blank_values=True)})
+
+
+def is_static_asset(url: str) -> bool:
+    """Return True when the URL path looks like a static/file asset."""
+    return Path(urlparse(url).path).suffix.lower() in STATIC_ASSET_EXTENSIONS
+
+
+def analyze_links(links: list[str]) -> dict:
+    """Build deterministic URL-shape intelligence for discovered links."""
+    static_assets: list[str] = []
+    pages: list[str] = []
+    parameterized: list[dict[str, object]] = []
+    dynamic_candidates: list[str] = []
+    unique_parameters: set[str] = set()
+
+    for link in sorted(set(links)):
+        params = query_parameters(link)
+        static = is_static_asset(link)
+
+        if static:
+            static_assets.append(link)
+        else:
+            pages.append(link)
+
+        if params:
+            parameterized.append({"url": link, "parameters": params})
+            unique_parameters.update(params)
+            if not static:
+                dynamic_candidates.append(link)
+
+    return {
+        "summary": {
+            "pages": len(pages),
+            "static_assets": len(static_assets),
+            "parameterized": len(parameterized),
+            "dynamic_candidates": len(dynamic_candidates),
+            "unique_parameters": len(unique_parameters),
+        },
+        "pages": pages,
+        "static_assets": static_assets,
+        "parameterized": parameterized,
+        "dynamic_candidates": dynamic_candidates,
+        "unique_parameters": sorted(unique_parameters),
+    }
+
+
 def scrape(url: str, timeout: int = DEFAULT_TIMEOUT) -> tuple[list[str], str]:
     """Fetch one page and return discovered links plus the final response URL."""
     headers = {"User-Agent": USER_AGENT}
@@ -169,11 +271,12 @@ def crawl(
 ) -> tuple[list[str], str, list[str], list[tuple[str, str]]]:
     """Crawl same-host links up to a bounded depth.
 
-    External links are collected but never requested. When path_prefix is set,
-    only matching internal links are eligible for additional requests.
+    External links are collected but never intentionally queued. Secondary
+    responses that finish outside the established host/path scope are ignored.
     """
     start_url = canonical_crawl_url(url)
     queue: deque[tuple[str, int]] = deque([(start_url, 0)])
+    queued: set[str] = {start_url}
     visited: set[str] = set()
     discovered: set[str] = set()
     errors: list[tuple[str, str]] = []
@@ -181,6 +284,7 @@ def crawl(
 
     while queue and len(visited) < max_pages:
         current_url, current_depth = queue.popleft()
+        queued.discard(current_url)
         if current_url in visited:
             continue
 
@@ -198,6 +302,17 @@ def crawl(
 
         if first_final_url is None:
             first_final_url = final_url
+        else:
+            if not is_internal_link(final_url, first_final_url):
+                errors.append(
+                    (current_url, f"redirect escaped host scope: {final_url}")
+                )
+                continue
+            if path_prefix and not path_matches_prefix(final_url, path_prefix):
+                errors.append(
+                    (current_url, f"redirect escaped path scope: {final_url}")
+                )
+                continue
 
         discovered.update(links)
 
@@ -213,14 +328,90 @@ def crawl(
                 continue
             if has_excluded_extension(link, exclude_extensions):
                 continue
+
             crawl_link = canonical_crawl_url(link)
-            if crawl_link not in visited:
+            if crawl_link not in visited and crawl_link not in queued:
                 queue.append((crawl_link, current_depth + 1))
+                queued.add(crawl_link)
 
         if delay > 0 and queue and len(visited) < max_pages:
             time.sleep(delay)
 
     return sorted(discovered), first_final_url or start_url, sorted(visited), errors
+
+
+def check_http_status(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
+    """Perform a lightweight streamed GET and return status/redirect metadata."""
+    headers = {"User-Agent": USER_AGENT}
+    response = None
+
+    try:
+        response = requests.get(
+            url,
+            headers=headers,
+            timeout=timeout,
+            allow_redirects=True,
+            stream=True,
+        )
+        final_url = response.url
+        return {
+            "url": url,
+            "status": response.status_code,
+            "final_url": final_url,
+            "redirected": canonical_crawl_url(final_url) != canonical_crawl_url(url),
+            "broken": response.status_code >= 400,
+            "error": None,
+        }
+    except requests.RequestException as exc:
+        return {
+            "url": url,
+            "status": None,
+            "final_url": None,
+            "redirected": False,
+            "broken": True,
+            "error": str(exc),
+        }
+    finally:
+        if response is not None:
+            response.close()
+
+
+def check_http_links(
+    urls: list[str],
+    timeout: int = DEFAULT_TIMEOUT,
+    limit: int = DEFAULT_CHECK_LIMIT,
+    delay: float = DEFAULT_DELAY,
+) -> list[dict]:
+    """Check a bounded, deduplicated list of URLs."""
+    selected: list[str] = []
+    seen: set[str] = set()
+
+    for url in urls:
+        key = canonical_crawl_url(url)
+        if key in seen:
+            continue
+        seen.add(key)
+        selected.append(url)
+        if len(selected) >= limit:
+            break
+
+    results: list[dict] = []
+    for index, url in enumerate(selected):
+        results.append(check_http_status(url, timeout=timeout))
+        if delay > 0 and index < len(selected) - 1:
+            time.sleep(delay)
+
+    return results
+
+
+def summarize_http_checks(checks: list[dict]) -> dict:
+    """Summarize bounded HTTP checks."""
+    return {
+        "checked": len(checks),
+        "redirects": sum(1 for item in checks if item["redirected"]),
+        "broken": sum(1 for item in checks if item["broken"]),
+        "errors": sum(1 for item in checks if item["error"]),
+    }
 
 
 def print_group(title: str, links: list[str]) -> None:
@@ -259,14 +450,20 @@ def build_report(
     pages_scanned: int = 1,
     max_pages: int = DEFAULT_MAX_PAGES,
     crawl_errors: list[tuple[str, str]] | None = None,
+    analysis: dict | None = None,
+    http_checks: list[dict] | None = None,
+    preset: str | None = None,
 ) -> dict:
     """Build a serializable report for JSON/CSV export."""
     visible_external = [] if internal_only else external
     crawl_errors = crawl_errors or []
+    analysis = analysis or analyze_links(all_links)
+    http_checks = http_checks or []
 
     return {
         "requested_url": requested_url,
         "final_url": final_url,
+        "preset": preset,
         "total_found": len(all_links),
         "total_shown": len(internal) + len(visible_external),
         "filters": {
@@ -289,6 +486,11 @@ def build_report(
         "links": {
             "internal": internal,
             "external": visible_external,
+        },
+        "analysis": analysis,
+        "http_checks": {
+            "summary": summarize_http_checks(http_checks),
+            "results": http_checks,
         },
     }
 
@@ -324,4 +526,3 @@ def save_report(path: str | Path, report: dict) -> str:
                 writer.writerow({"category": category.upper(), "url": link})
 
     return output_format
-
