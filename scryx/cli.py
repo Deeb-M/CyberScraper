@@ -21,14 +21,13 @@ from .core import (
     classify_links,
     crawl,
     normalize_extensions,
-    output_format_for_path,
     prepare_target_url,
     print_crawl_errors,
     print_group,
-    save_report,
     scrape,
     summarize_http_checks,
 )
+from .reporting import output_format_for_path, save_report, save_scan_bundle
 
 PRESETS = {
     "quick": {
@@ -142,7 +141,19 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help=f"Maximum URLs to status-check (hard max: {MAX_CHECK_LIMIT}).",
     )
-    parser.add_argument("--output", help="Save results to a .json or .csv file.")
+    parser.add_argument(
+        "--output",
+        help="Save one report to .json, .csv, or .txt.",
+    )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Create a timestamped scan directory with JSON, CSV, and TXT reports.",
+    )
+    parser.add_argument(
+        "--report-dir",
+        help="Base directory for scan bundles (implies --report).",
+    )
     parser.add_argument(
         "--timeout",
         type=int,
@@ -323,7 +334,10 @@ def main() -> int:
         )
         print_http_checks(http_checks)
 
-    if args.output:
+    report_requested = bool(args.output or args.report or args.report_dir)
+    report: dict | None = None
+
+    if report_requested:
         report = build_report(
             requested_url=target_url,
             final_url=final_url,
@@ -342,8 +356,15 @@ def main() -> int:
             http_checks=http_checks,
             preset=settings["preset"],
         )
+
+    if args.output and report is not None:
         output_format = save_report(args.output, report)
         print(f"\n[+] Saved {output_format.upper()} results to {args.output}")
+
+    if (args.report or args.report_dir) and report is not None:
+        base_dir = args.report_dir or "scryx-scans"
+        scan_dir = save_scan_bundle(base_dir, report)
+        print(f"\n[+] Saved scan bundle to {scan_dir}")
 
     return 0
 

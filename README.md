@@ -2,7 +2,7 @@
 
 Scryx is a focused web reconnaissance CLI for authorized security work. It grew from the original CyberScraper project into an installable command-line tool designed for Kali Linux and normal terminal use.
 
-> Current development line: **v0.8**
+> Current development line: **v0.9**
 >
 > The repository is public. Scryx remains under active development and should be used only on systems you own or where you have explicit permission to perform reconnaissance or security testing.
 
@@ -16,7 +16,7 @@ scryx example.com --recon
 
 Scryx handles the crawl, URL normalization, scope controls, URL-shape analysis, and bounded HTTP checks in one workflow while keeping conservative request limits.
 
-## v0.8 capabilities
+## Current capabilities
 
 - Installable Kali/Linux CLI through `pipx`
 - Short global command: `scryx`
@@ -193,15 +193,35 @@ scryx example.com --recon \
   --exclude-extension zip
 ```
 
-Save JSON:
+Save one report in JSON, enriched CSV, or TXT:
 
 ```bash
 scryx example.com --recon --output results.json
+scryx example.com --recon --output results.csv
+scryx example.com --recon --output summary.txt
 ```
 
-JSON reports include crawl metadata, URL analysis, and HTTP-check results.
+Create a complete timestamped scan bundle:
 
-CSV currently keeps the simple categorized link format; richer reporting is planned for the v0.9 reporting milestone.
+```bash
+scryx example.com --recon --report
+```
+
+By default this creates a directory below `scryx-scans/` containing:
+
+```text
+report.json
+links.csv
+summary.txt
+```
+
+Use a custom base directory when needed:
+
+```bash
+scryx example.com --recon --report-dir ~/recon-reports
+```
+
+The enriched CSV includes category, URL type, query parameters, HTTP status, final URL, redirect state, broken state, and request errors when those values were checked.
 
 ## Safety limits
 
@@ -276,10 +296,12 @@ CyberScraper/
 │   ├── __init__.py
 │   ├── __main__.py
 │   ├── cli.py
-│   └── core.py
+│   ├── core.py
+│   └── reporting.py
 ├── tests/
 │   ├── test_cli.py
-│   └── test_cyberscraper.py
+│   ├── test_cyberscraper.py
+│   └── test_reporting.py
 ├── cyberscraper.py
 ├── pyproject.toml
 ├── requirements.txt
@@ -291,9 +313,9 @@ CyberScraper/
 
 **v0.7 — Kali CLI foundation:** completed. Scryx was installed through `pipx` and successfully run from outside the source directory on Kali Linux.
 
-**v0.8 — Recon workflow:** presets, URL intelligence, bounded HTTP status/redirect checks, and safer crawl handling.
+**v0.8 — Recon workflow:** completed. Presets, URL intelligence, bounded HTTP status/redirect checks, and safer crawl handling were validated on Kali Linux.
 
-**v0.9 — Reporting:** scan directories, richer JSON/CSV/TXT output, concise professional summaries, and report usability.
+**v0.9 — Reporting:** timestamped scan directories, richer JSON/CSV/TXT output, concise professional summaries, and report usability.
 
 **v0.9.x — Hardening:** malformed HTML, redirect edge cases, timeouts, duplicate behavior, HTTP/HTTPS edge cases, robots-awareness decisions, and broader regression coverage.
 

@@ -13,6 +13,8 @@ from urllib.parse import parse_qsl, urljoin, urlparse, urldefrag
 import requests
 from bs4 import BeautifulSoup
 
+from . import __version__
+
 DEFAULT_TIMEOUT = 10
 DEFAULT_DELAY = 0.25
 DEFAULT_MAX_PAGES = 25
@@ -20,7 +22,7 @@ DEFAULT_CHECK_LIMIT = 25
 MAX_CRAWL_DEPTH = 2
 MAX_PAGE_LIMIT = 100
 MAX_CHECK_LIMIT = 50
-USER_AGENT = "Scryx/0.8.0 (+authorized-security-research)"
+USER_AGENT = f"Scryx/{__version__} (+authorized-security-research)"
 
 STATIC_ASSET_EXTENSIONS = {
     ".7z",

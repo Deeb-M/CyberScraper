@@ -64,5 +64,19 @@ class PresetTests(unittest.TestCase):
             parser.parse_args(["example.com", "--quick", "--recon"])
 
 
+class ReportingCliTests(unittest.TestCase):
+    def test_report_directory_option_is_available(self):
+        args = cli.build_parser().parse_args(
+            ["example.com", "--recon", "--report-dir", "scans"]
+        )
+        self.assertEqual(args.report_dir, "scans")
+        self.assertFalse(args.report)
+
+    def test_report_flag_uses_default_bundle_location(self):
+        args = cli.build_parser().parse_args(["example.com", "--report"])
+        self.assertTrue(args.report)
+        self.assertIsNone(args.report_dir)
+
+
 if __name__ == "__main__":
     unittest.main()
