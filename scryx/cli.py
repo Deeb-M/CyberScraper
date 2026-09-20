@@ -380,6 +380,9 @@ def main() -> int:
             print(f"[!] Could not save scan bundle: {exc}")
             return 1
         print(f"\n[+] Saved scan bundle to {scan_dir}")
+        print("[+] Files:")
+        for filename in ("report.json", "links.csv", "summary.txt"):
+            print(f"    {scan_dir / filename}")
 
     return 0
 
