@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.0
+
+First stable Scryx release.
+
+- Promotes the validated 1.0.0rc1 codebase to stable without changing recon behavior.
+- Kali/Linux installation and global CLI usage validated through `pipx`.
+- Quick, recon, and deep presets validated with bounded crawl and HTTP-check limits.
+- JSON, CSV, TXT, and timestamped scan-bundle reporting validated.
+- Redirect, scope, pacing, non-HTML handling, duplicate crawl, filesystem, and report-directory edge cases hardened.
+- CI validated on Python 3.10, 3.12, 3.13, and 3.14.
+
 ## 1.0.0rc1
 
 Release candidate for the first stable Scryx CLI release.
