@@ -2,7 +2,7 @@
 
 Scryx is a focused web reconnaissance CLI for authorized security work. It grew from the original CyberScraper project into an installable command-line tool designed for Kali Linux and normal terminal use.
 
-> Current development line: **v0.9.4**
+> Current development line: **v1.0.0rc1**
 >
 > The repository is public. Scryx remains under active development and should be used only on systems you own or where you have explicit permission to perform reconnaissance or security testing.
 
@@ -330,7 +330,9 @@ CyberScraper/
 
 **v0.9.4 — Final pre-release hardening:** enforces pacing between every secondary crawl request, prevents scan-directory collisions, reports filesystem write failures cleanly, and records the `robots.txt` scope decision for authorized security workflows.
 
-**v0.9.x — Hardening complete:** redirect, pacing, HTTP/content, duplicate, reporting, filesystem, and regression hardening are complete. The next step is v1.0 release-candidate validation and project/package naming checks.
+**v0.9.x — Hardening complete:** redirect, pacing, HTTP/content, duplicate, reporting, filesystem, and regression hardening are complete.
+
+**v1.0.0rc1 — Release candidate:** package naming check completed, tracked repository contents reviewed, Kali deep/reporting validation passed, and final release-candidate validation is in progress.
 
 **v1.0 — Public release target:** simple Kali installation, short normal workflow, stable presets, useful reports, clean documentation, and final release validation.
 
