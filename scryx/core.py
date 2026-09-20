@@ -22,6 +22,8 @@ DEFAULT_CHECK_LIMIT = 25
 MAX_CRAWL_DEPTH = 2
 MAX_PAGE_LIMIT = 100
 MAX_CHECK_LIMIT = 50
+MAX_REDIRECTS = 10
+REDIRECT_STATUS_CODES = {301, 302, 303, 307, 308}
 USER_AGENT = f"Scryx/{__version__} (+authorized-security-research)"
 
 STATIC_ASSET_EXTENSIONS = {
@@ -253,12 +255,85 @@ def analyze_links(links: list[str]) -> dict:
     }
 
 
-def scrape(url: str, timeout: int = DEFAULT_TIMEOUT) -> tuple[list[str], str]:
-    """Fetch one page and return discovered links plus the final response URL."""
+def _request_with_scoped_redirects(
+    url: str,
+    timeout: int = DEFAULT_TIMEOUT,
+    stream: bool = False,
+    path_prefix: str | None = None,
+) -> tuple[requests.Response, str, int, str | None]:
+    """Follow redirects only while they remain inside the requested host/scope."""
     headers = {"User-Agent": USER_AGENT}
-    response = requests.get(url, headers=headers, timeout=timeout)
-    response.raise_for_status()
-    return extract_links(response.text, response.url), response.url
+    scope_url = canonical_crawl_url(url)
+    current_url = scope_url
+    seen: set[str] = set()
+    redirect_count = 0
+
+    while True:
+        key = canonical_crawl_url(current_url)
+        if key in seen:
+            raise requests.TooManyRedirects("redirect loop detected")
+        seen.add(key)
+
+        response = requests.get(
+            current_url,
+            headers=headers,
+            timeout=timeout,
+            allow_redirects=False,
+            stream=stream,
+        )
+
+        location = response.headers.get("Location")
+        if response.status_code in REDIRECT_STATUS_CODES and location:
+            redirect_target = normalize_url(current_url, location)
+            if redirect_target is None:
+                return response, current_url, redirect_count, None
+
+            redirect_count += 1
+            if redirect_count > MAX_REDIRECTS:
+                response.close()
+                raise requests.TooManyRedirects(
+                    f"redirect limit exceeded ({MAX_REDIRECTS})"
+                )
+
+            if not is_internal_link(redirect_target, scope_url):
+                return response, current_url, redirect_count, redirect_target
+
+            if path_prefix and not path_matches_prefix(redirect_target, path_prefix):
+                return response, current_url, redirect_count, redirect_target
+
+            response.close()
+            current_url = canonical_crawl_url(redirect_target)
+            continue
+
+        return response, current_url, redirect_count, None
+
+
+def scrape(
+    url: str,
+    timeout: int = DEFAULT_TIMEOUT,
+    path_prefix: str | None = None,
+) -> tuple[list[str], str]:
+    """Fetch one page without following redirects outside the requested scope."""
+    response = None
+
+    try:
+        response, final_url, _redirects, blocked_redirect = _request_with_scoped_redirects(
+            url,
+            timeout=timeout,
+            stream=False,
+            path_prefix=path_prefix,
+        )
+
+        if blocked_redirect is not None:
+            raise requests.RequestException(
+                f"redirect escaped scope: {blocked_redirect}"
+            )
+
+        response.raise_for_status()
+        return extract_links(response.text, final_url), final_url
+    finally:
+        if response is not None:
+            response.close()
 
 
 def crawl(
@@ -293,7 +368,11 @@ def crawl(
         visited.add(current_url)
 
         try:
-            links, final_url = scrape(current_url, timeout=timeout)
+            links, final_url = scrape(
+                current_url,
+                timeout=timeout,
+                path_prefix=path_prefix,
+            )
         except requests.RequestException as exc:
             if current_url == start_url and first_final_url is None:
                 raise
@@ -343,24 +422,23 @@ def crawl(
 
 
 def check_http_status(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
-    """Perform a lightweight streamed GET and return status/redirect metadata."""
-    headers = {"User-Agent": USER_AGENT}
+    """Perform a lightweight GET while preventing cross-host redirect escape."""
     response = None
 
     try:
-        response = requests.get(
-            url,
-            headers=headers,
-            timeout=timeout,
-            allow_redirects=True,
-            stream=True,
+        response, final_url, redirect_count, blocked_redirect = (
+            _request_with_scoped_redirects(
+                url,
+                timeout=timeout,
+                stream=True,
+            )
         )
-        final_url = response.url
         return {
             "url": url,
             "status": response.status_code,
             "final_url": final_url,
-            "redirected": canonical_crawl_url(final_url) != canonical_crawl_url(url),
+            "redirected": redirect_count > 0,
+            "blocked_redirect": blocked_redirect,
             "broken": response.status_code >= 400,
             "error": None,
         }
@@ -370,6 +448,7 @@ def check_http_status(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
             "status": None,
             "final_url": None,
             "redirected": False,
+            "blocked_redirect": None,
             "broken": True,
             "error": str(exc),
         }
@@ -413,6 +492,9 @@ def summarize_http_checks(checks: list[dict]) -> dict:
         "redirects": sum(1 for item in checks if item["redirected"]),
         "broken": sum(1 for item in checks if item["broken"]),
         "errors": sum(1 for item in checks if item["error"]),
+        "blocked_redirects": sum(
+            1 for item in checks if item.get("blocked_redirect")
+        ),
     }
 
 
