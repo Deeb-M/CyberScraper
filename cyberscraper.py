@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import time
+from collections import deque
 from pathlib import Path
 from urllib.parse import urljoin, urlparse, urldefrag
 
@@ -13,7 +15,11 @@ import requests
 from bs4 import BeautifulSoup
 
 DEFAULT_TIMEOUT = 10
-USER_AGENT = "CyberScraper/0.3 (+authorized-security-research)"
+DEFAULT_DELAY = 0.25
+DEFAULT_MAX_PAGES = 25
+MAX_CRAWL_DEPTH = 2
+MAX_PAGE_LIMIT = 100
+USER_AGENT = "CyberScraper/0.4 (+authorized-security-research)"
 
 
 def normalize_url(base_url: str, href: str) -> str | None:
@@ -69,11 +75,7 @@ def classify_links(
     target_url: str,
     path_prefix: str | None = None,
 ) -> tuple[list[str], list[str]]:
-    """Split links into internal and external groups.
-
-    When path_prefix is supplied, it restricts only the internal links.
-    External links are still reported so the user can see off-site references.
-    """
+    """Split links into internal and external groups."""
     internal: list[str] = []
     external: list[str] = []
 
@@ -90,11 +92,65 @@ def classify_links(
 def scrape(url: str, timeout: int = DEFAULT_TIMEOUT) -> tuple[list[str], str]:
     """Fetch one page and return discovered links plus the final response URL."""
     headers = {"User-Agent": USER_AGENT}
-
     response = requests.get(url, headers=headers, timeout=timeout)
     response.raise_for_status()
-
     return extract_links(response.text, response.url), response.url
+
+
+def crawl(
+    url: str,
+    depth: int,
+    max_pages: int = DEFAULT_MAX_PAGES,
+    timeout: int = DEFAULT_TIMEOUT,
+    path_prefix: str | None = None,
+    delay: float = DEFAULT_DELAY,
+) -> tuple[list[str], str, list[str], list[tuple[str, str]]]:
+    """Crawl same-host links up to a bounded depth.
+
+    External links are collected but never requested. When path_prefix is set,
+    only matching internal links are eligible for additional requests.
+    """
+    queue: deque[tuple[str, int]] = deque([(url, 0)])
+    visited: set[str] = set()
+    discovered: set[str] = set()
+    errors: list[tuple[str, str]] = []
+    first_final_url: str | None = None
+
+    while queue and len(visited) < max_pages:
+        current_url, current_depth = queue.popleft()
+        if current_url in visited:
+            continue
+
+        visited.add(current_url)
+
+        try:
+            links, final_url = scrape(current_url, timeout=timeout)
+        except requests.RequestException as exc:
+            if current_url == url and first_final_url is None:
+                raise
+            errors.append((current_url, str(exc)))
+            continue
+
+        if first_final_url is None:
+            first_final_url = final_url
+
+        discovered.update(links)
+
+        if current_depth >= depth:
+            continue
+
+        for link in links:
+            if not is_internal_link(link, first_final_url):
+                continue
+            if not path_matches_prefix(link, path_prefix):
+                continue
+            if link not in visited:
+                queue.append((link, current_depth + 1))
+
+        if delay > 0 and queue and len(visited) < max_pages:
+            time.sleep(delay)
+
+    return sorted(discovered), first_final_url or url, sorted(visited), errors
 
 
 def print_group(title: str, links: list[str]) -> None:
@@ -116,9 +172,15 @@ def build_report(
     external: list[str],
     internal_only: bool,
     path_prefix: str | None,
+    depth: int = 0,
+    pages_scanned: int = 1,
+    max_pages: int = DEFAULT_MAX_PAGES,
+    crawl_errors: list[tuple[str, str]] | None = None,
 ) -> dict:
     """Build a serializable report for JSON/CSV export."""
     visible_external = [] if internal_only else external
+    crawl_errors = crawl_errors or []
+
     return {
         "requested_url": requested_url,
         "final_url": final_url,
@@ -127,6 +189,15 @@ def build_report(
         "filters": {
             "internal_only": internal_only,
             "path_prefix": path_prefix,
+        },
+        "crawl": {
+            "depth": depth,
+            "pages_scanned": pages_scanned,
+            "max_pages": max_pages,
+            "errors": [
+                {"url": error_url, "error": message}
+                for error_url, message in crawl_errors
+            ],
         },
         "links": {
             "internal": internal,
@@ -170,7 +241,7 @@ def save_report(path: str | Path, report: dict) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Extract and classify links from a web page for authorized reconnaissance."
+        description="Extract, classify, and optionally crawl links for authorized reconnaissance."
     )
     parser.add_argument("url", help="Target page URL, e.g. https://example.com")
     parser.add_argument(
@@ -181,9 +252,29 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--path-prefix",
         help=(
-            "Restrict internal links to one path prefix, "
+            "Restrict internal links and crawl scope to one path prefix, "
             "for example /Deeb-M/CyberScraper."
         ),
+    )
+    parser.add_argument(
+        "--depth",
+        type=int,
+        choices=range(0, MAX_CRAWL_DEPTH + 1),
+        default=0,
+        metavar="0|1|2",
+        help="Crawl depth. 0 scans one page; maximum is 2 (default: 0).",
+    )
+    parser.add_argument(
+        "--max-pages",
+        type=int,
+        default=DEFAULT_MAX_PAGES,
+        help=f"Maximum pages to request during crawling (default: {DEFAULT_MAX_PAGES}, max: {MAX_PAGE_LIMIT}).",
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=DEFAULT_DELAY,
+        help=f"Delay in seconds between crawl requests (default: {DEFAULT_DELAY}).",
     )
     parser.add_argument(
         "--output",
@@ -201,6 +292,12 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
 
+    if not 1 <= args.max_pages <= MAX_PAGE_LIMIT:
+        print(f"[!] --max-pages must be between 1 and {MAX_PAGE_LIMIT}")
+        return 2
+    if args.delay < 0:
+        print("[!] --delay cannot be negative")
+        return 2
     if args.output:
         try:
             output_format_for_path(args.output)
@@ -209,7 +306,19 @@ def main() -> int:
             return 2
 
     try:
-        links, final_url = scrape(args.url, timeout=args.timeout)
+        if args.depth == 0:
+            links, final_url = scrape(args.url, timeout=args.timeout)
+            pages_scanned = [final_url]
+            crawl_errors: list[tuple[str, str]] = []
+        else:
+            links, final_url, pages_scanned, crawl_errors = crawl(
+                args.url,
+                depth=args.depth,
+                max_pages=args.max_pages,
+                timeout=args.timeout,
+                path_prefix=args.path_prefix,
+                delay=args.delay,
+            )
     except requests.RequestException as exc:
         print(f"[!] Request failed: {exc}")
         return 1
@@ -221,8 +330,12 @@ def main() -> int:
     )
 
     visible_total = len(internal) if args.internal_only else len(internal) + len(external)
+    print(f"[+] Scanned {len(pages_scanned)} page(s)")
     print(f"[+] Found {len(links)} unique link(s)")
     print(f"[+] Showing {visible_total} link(s) after filters")
+
+    if crawl_errors:
+        print(f"[!] {len(crawl_errors)} crawl request(s) failed")
 
     print_group("INTERNAL", internal)
     if not args.internal_only:
@@ -237,6 +350,10 @@ def main() -> int:
             external=external,
             internal_only=args.internal_only,
             path_prefix=args.path_prefix,
+            depth=args.depth,
+            pages_scanned=len(pages_scanned),
+            max_pages=args.max_pages,
+            crawl_errors=crawl_errors,
         )
         output_format = save_report(args.output, report)
         print(f"\n[+] Saved {output_format.upper()} results to {args.output}")
