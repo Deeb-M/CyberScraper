@@ -2,7 +2,7 @@
 
 Scryx is a focused web reconnaissance CLI for authorized security work. It grew from the original CyberScraper project into an installable command-line tool designed for Kali Linux and normal terminal use.
 
-> Current development line: **v0.9.3**
+> Current development line: **v0.9.4**
 >
 > The repository is public. Scryx remains under active development and should be used only on systems you own or where you have explicit permission to perform reconnaissance or security testing.
 
@@ -44,7 +44,7 @@ Scryx handles the crawl, URL normalization, scope controls, URL-shape analysis, 
 - Bounded HTTP status checks
 - Redirect reporting
 - Broken/error result reporting
-- JSON and CSV export
+- JSON, CSV, and TXT export
 - Backward-compatible `cyberscraper.py` launcher
 
 ## Recon presets
@@ -238,6 +238,8 @@ Scryx keeps reconnaissance deliberately bounded.
 - Redirects are followed only while they stay inside the requested host scope
 - Path-restricted crawls also block redirects that escape the requested path prefix
 - Cross-host redirects discovered during HTTP checks are reported but are not followed
+- Crawl delay is enforced between every secondary page request, including error and maximum-depth paths
+- `robots.txt` is not treated as authorization or as an automatic scope boundary; explicit permission and program scope remain authoritative
 
 These limits are intentional while the tool is developed and validated.
 
@@ -326,7 +328,9 @@ CyberScraper/
 
 **v0.9.3 — HTTP/content hardening:** skips non-HTML response bodies during link extraction and preserves configured crawl delay after secondary request failures or scope rejections.
 
-**v0.9.x — Remaining hardening:** robots-awareness decision, final HTTP edge cases, and broader regression coverage before the v1.0 release candidate.
+**v0.9.4 — Final pre-release hardening:** enforces pacing between every secondary crawl request, prevents scan-directory collisions, reports filesystem write failures cleanly, and records the `robots.txt` scope decision for authorized security workflows.
+
+**v0.9.x — Hardening complete:** redirect, pacing, HTTP/content, duplicate, reporting, filesystem, and regression hardening are complete. The next step is v1.0 release-candidate validation and project/package naming checks.
 
 **v1.0 — Public release target:** simple Kali installation, short normal workflow, stable presets, useful reports, clean documentation, and final release validation.
 
