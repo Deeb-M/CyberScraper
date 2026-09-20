@@ -19,7 +19,7 @@ DEFAULT_DELAY = 0.25
 DEFAULT_MAX_PAGES = 25
 MAX_CRAWL_DEPTH = 2
 MAX_PAGE_LIMIT = 100
-USER_AGENT = "CyberScraper/0.4.1 (+authorized-security-research)"
+USER_AGENT = "CyberScraper/0.4.2 (+authorized-security-research)"
 
 
 def normalize_url(base_url: str, href: str) -> str | None:
@@ -33,6 +33,10 @@ def normalize_url(base_url: str, href: str) -> str | None:
     parsed = urlparse(clean)
 
     if parsed.scheme not in {"http", "https"}:
+        return None
+
+    path_segments = [segment for segment in parsed.path.split("/") if segment]
+    if "..." in path_segments:
         return None
 
     return clean
