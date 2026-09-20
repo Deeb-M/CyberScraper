@@ -105,13 +105,20 @@ The default crawl cap is 25 pages and the hard maximum is 100 pages. The default
 Example terminal summary:
 
 \`\`\`text
-[+] Scanned 10 page(s)
-[+] Found 132 unique link(s)
-[+] Showing 46 link(s) after filters
+[+] Attempted 5 page(s)
+[+] Successfully scanned 4 page(s)
+[+] Found 137 unique link(s)
+[+] Showing 54 link(s) after filters
 
-[INTERNAL] (46)
+[CRAWL ERRORS] (1)
+- https://example.com/unavailable
+  404 Client Error: Not Found
+
+[INTERNAL] (54)
 ...
 \`\`\`
+
+Failed crawl requests do not stop the rest of the crawl. Their URL and error reason are shown in the terminal and included in JSON export.
 
 ## JSON export
 
@@ -129,9 +136,16 @@ JSON includes scan metadata, active filters, crawl information, counts, errors, 
   },
   "crawl": {
     "depth": 1,
-    "pages_scanned": 3,
+    "pages_attempted": 3,
+    "pages_scanned": 2,
+    "failed_requests": 1,
     "max_pages": 25,
-    "errors": []
+    "errors": [
+      {
+        "url": "https://example.com/unavailable",
+        "error": "404 Client Error: Not Found"
+      }
+    ]
   },
   "links": {
     "internal": [],
