@@ -25,6 +25,7 @@ MAX_CHECK_LIMIT = 50
 MAX_REDIRECTS = 10
 REDIRECT_STATUS_CODES = {301, 302, 303, 307, 308}
 USER_AGENT = f"Scryx/{__version__} (+authorized-security-research)"
+HTML_CONTENT_TYPES = {"text/html", "application/xhtml+xml"}
 
 STATIC_ASSET_EXTENSIONS = {
     ".7z",
@@ -330,6 +331,11 @@ def scrape(
             )
 
         response.raise_for_status()
+        content_type = response.headers.get("Content-Type", "")
+        media_type = content_type.split(";", 1)[0].strip().lower()
+        if media_type and media_type not in HTML_CONTENT_TYPES:
+            return [], final_url
+
         return extract_links(response.text, final_url), final_url
     finally:
         if response is not None:
@@ -378,6 +384,8 @@ def crawl(
             if current_url == start_url and first_final_url is None:
                 raise
             errors.append((current_url, str(exc)))
+            if delay > 0 and queue and len(visited) < max_pages:
+                time.sleep(delay)
             continue
 
         final_url = canonical_crawl_url(final_url)
@@ -390,11 +398,15 @@ def crawl(
                 errors.append(
                     (current_url, f"redirect escaped host scope: {final_url}")
                 )
+                if delay > 0 and queue and len(visited) < max_pages:
+                    time.sleep(delay)
                 continue
             if path_prefix and not path_matches_prefix(final_url, path_prefix):
                 errors.append(
                     (current_url, f"redirect escaped path scope: {final_url}")
                 )
+                if delay > 0 and queue and len(visited) < max_pages:
+                    time.sleep(delay)
                 continue
 
         discovered.update(links)
