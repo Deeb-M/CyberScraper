@@ -124,6 +124,28 @@ class ClassificationTests(unittest.TestCase):
             )
         )
 
+    def test_excluded_path_prefix_is_removed_from_internal_results(self):
+        internal, external = cyberscraper.classify_links(
+            [
+                "https://example.com/project",
+                "https://example.com/project/actions",
+                "https://example.com/project/docs",
+                "https://external.test/page",
+            ],
+            "https://example.com/project",
+            path_prefix="/project",
+            exclude_path_prefixes=["/project/actions"],
+        )
+
+        self.assertEqual(
+            internal,
+            [
+                "https://example.com/project",
+                "https://example.com/project/docs",
+            ],
+        )
+        self.assertEqual(external, ["https://external.test/page"])
+
 
 class CrawlTests(unittest.TestCase):
     @patch("cyberscraper.time.sleep")
@@ -171,6 +193,38 @@ class CrawlTests(unittest.TestCase):
         self.assertNotIn("https://example.com/other", requested_urls)
         self.assertNotIn("https://external.test/page", requested_urls)
         mock_sleep.assert_called_once()
+
+    @patch("cyberscraper.scrape")
+    def test_excluded_path_is_not_crawled(self, mock_scrape):
+        mock_scrape.side_effect = [
+            (
+                [
+                    "https://example.com/project/actions",
+                    "https://example.com/project/docs",
+                ],
+                "https://example.com/project",
+            ),
+            ([], "https://example.com/project/docs"),
+        ]
+
+        _links, _final_url, pages, _errors = cyberscraper.crawl(
+            "https://example.com/project",
+            depth=1,
+            max_pages=10,
+            path_prefix="/project",
+            exclude_path_prefixes=["/project/actions"],
+            delay=0,
+        )
+
+        requested_urls = [call.args[0] for call in mock_scrape.call_args_list]
+        self.assertEqual(
+            requested_urls,
+            [
+                "https://example.com/project",
+                "https://example.com/project/docs",
+            ],
+        )
+        self.assertEqual(len(pages), 2)
 
     @patch("cyberscraper.scrape")
     def test_max_pages_stops_crawl(self, mock_scrape):
@@ -229,6 +283,7 @@ class ExportTests(unittest.TestCase):
             depth=1,
             pages_scanned=2,
             max_pages=25,
+            exclude_path_prefixes=["/private"],
         )
 
     def test_output_format_is_inferred_from_extension(self):
@@ -250,6 +305,7 @@ class ExportTests(unittest.TestCase):
             self.assertEqual(saved["crawl"]["pages_attempted"], 2)
             self.assertEqual(saved["crawl"]["pages_scanned"], 2)
             self.assertEqual(saved["crawl"]["failed_requests"], 0)
+            self.assertEqual(saved["filters"]["exclude_path_prefixes"], ["/private"])
             self.assertEqual(saved["links"]["internal"], ["https://example.com/about"])
             self.assertEqual(saved["links"]["external"], ["https://external.test/page"])
 
