@@ -264,6 +264,11 @@ def analyze_links(links: list[str]) -> dict:
             if not static:
                 dynamic_candidates.append(link)
 
+    asset_types: dict[str, int] = {}
+    for asset in static_assets:
+        extension = Path(urlparse(asset).path).suffix.lower() or "[no extension]"
+        asset_types[extension] = asset_types.get(extension, 0) + 1
+
     return {
         "summary": {
             "pages": len(pages),
@@ -271,9 +276,11 @@ def analyze_links(links: list[str]) -> dict:
             "parameterized": len(parameterized),
             "dynamic_candidates": len(dynamic_candidates),
             "unique_parameters": len(unique_parameters),
+            "asset_types": len(asset_types),
         },
         "pages": pages,
         "static_assets": static_assets,
+        "asset_types": dict(sorted(asset_types.items())),
         "parameterized": parameterized,
         "dynamic_candidates": dynamic_candidates,
         "unique_parameters": sorted(unique_parameters),
