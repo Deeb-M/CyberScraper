@@ -1,6 +1,6 @@
 # Scryx User Guide
 
-This guide explains how to use Scryx v1.0.1 in normal authorized reconnaissance workflows.
+This guide explains how to use Scryx in normal authorized reconnaissance workflows. The stable release is v1.0.1; the current v1.1 development branch adds Recon Intelligence and broader explicit HTML URL discovery.
 
 > Use Scryx only on systems you own or where you have explicit permission to perform reconnaissance or security testing.
 
@@ -175,6 +175,16 @@ Scryx uses deterministic URL-shape heuristics:
 A dynamic candidate is only a reconnaissance hint. It does not prove that server-side dynamic code is vulnerable or even that the parameter affects application behavior.
 
 Important in v1.0.0: `--internal-only` controls which link groups are displayed, but URL analysis is calculated from all discovered links. Therefore an external URL can still contribute a parameter name to the URL-analysis summary.
+
+### Recon Intelligence (v1.1 development)
+
+After URL analysis, Scryx can summarize observed hosts, internal parameterized routes, dynamic candidates, factual recon leads, and suggested next steps.
+
+The suggested next steps are deterministic workflow guidance based only on what the scan observed. They do not label routes, parameters, redirects, resources, or HTTP errors as vulnerabilities.
+
+Scryx v1.1 also discovers explicit URLs from HTML attributes on `a`, `area`, `form`, `iframe`, `frame`, `script`, and `link` elements. Static resources such as JavaScript and CSS remain visible in discovery and analysis, but are not placed in the HTML crawl queue.
+
+Scryx still does not execute JavaScript or guess URLs from arbitrary inline script text.
 
 ### HTTP checks
 
@@ -497,7 +507,7 @@ scryx example.com --depth 1 --max-pages 20 --delay 0.75 --check-links --check-li
 
 ## 12. What Scryx does not do
 
-Scryx v1.0.0 is a bounded web reconnaissance tool. It is not a vulnerability scanner or exploitation framework.
+Scryx is a bounded web reconnaissance tool. It is not a vulnerability scanner or exploitation framework.
 
 It does not perform:
 
