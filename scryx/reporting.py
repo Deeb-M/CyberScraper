@@ -84,6 +84,8 @@ def render_text_report(report: dict) -> str:
     crawl = report.get("crawl", {})
     analysis = report.get("analysis", {}).get("summary", {})
     http = report.get("http_checks", {}).get("summary", {})
+    intelligence = report.get("recon_intelligence", {})
+    hosts = intelligence.get("hosts", {})
     preset = report.get("preset") or "custom"
 
     lines = [
@@ -115,6 +117,14 @@ def render_text_report(report: dict) -> str:
         f"Dynamic candidates: {analysis.get('dynamic_candidates', 0)}",
         f"Unique parameters: {analysis.get('unique_parameters', 0)}",
         "",
+        "Recon Intelligence",
+        "------------------",
+        f"Target host: {intelligence.get('target_host', '')}",
+        f"Internal hosts observed: {hosts.get('internal_count', 0)}",
+        f"External hosts referenced: {hosts.get('external_count', 0)}",
+        f"Internal parameterized routes: {len(intelligence.get('internal_parameterized_routes', []))}",
+        f"Internal dynamic candidates: {len(intelligence.get('internal_dynamic_candidates', []))}",
+        "",
         "HTTP Checks",
         "-----------",
         f"Checked: {http.get('checked', 0)}",
@@ -123,6 +133,15 @@ def render_text_report(report: dict) -> str:
         f"Broken/error results: {http.get('broken', 0)}",
         f"Request errors: {http.get('errors', 0)}",
     ]
+
+
+    leads = intelligence.get("leads", [])
+    if leads:
+        lines.extend(["", "Recon Leads", "-----------"])
+        for lead in leads:
+            lines.append(f"{lead.get('type', 'lead')}: {lead.get('count', 0)}")
+            if lead.get("note"):
+                lines.append(f"  {lead['note']}")
 
     unique_parameters = report.get("analysis", {}).get("unique_parameters", [])
     if unique_parameters:
