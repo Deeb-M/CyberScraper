@@ -459,6 +459,9 @@ def build_recon_intelligence(
         analysis,
         http_checks,
     )
+    parameterized_endpoint_groups = [
+        group for group in endpoint_groups if group.get("parameters")
+    ]
 
     return {
         "target_host": target_host,
@@ -469,6 +472,7 @@ def build_recon_intelligence(
             "external_count": len(external_hosts),
         },
         "internal_parameterized_routes": parameterized_urls,
+        "internal_parameterized_endpoint_count": len(parameterized_endpoint_groups),
         "internal_dynamic_candidates": dynamic_candidates,
         "endpoint_groups": endpoint_groups,
         "leads": leads,

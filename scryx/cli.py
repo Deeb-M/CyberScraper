@@ -245,7 +245,8 @@ def print_recon_intelligence(intelligence: dict) -> None:
     print(f"Target host: {intelligence['target_host']}")
     print(f"Internal hosts observed: {hosts['internal_count']}")
     print(f"External hosts referenced: {hosts['external_count']}")
-    print(f"Internal parameterized routes: {len(intelligence['internal_parameterized_routes'])}")
+    print(f"Internal parameterized URLs: {len(intelligence['internal_parameterized_routes'])}")
+    print(f"Parameterized endpoint groups: {intelligence['internal_parameterized_endpoint_count']}")
     print(f"Internal dynamic candidates: {len(intelligence['internal_dynamic_candidates'])}")
 
     leads = intelligence.get("leads", [])

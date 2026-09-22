@@ -845,6 +845,7 @@ class ReconIntelligenceTests(unittest.TestCase):
             intelligence["internal_parameterized_routes"],
             ["https://example.com/search?q=test"],
         )
+        self.assertEqual(intelligence["internal_parameterized_endpoint_count"], 1)
         self.assertEqual(
             [lead["type"] for lead in intelligence["leads"]],
             ["parameterized_routes", "external_hosts", "redirects"],
