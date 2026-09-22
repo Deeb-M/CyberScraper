@@ -850,6 +850,49 @@ class RedirectHardeningTests(unittest.TestCase):
         self.assertFalse(result["broken"])
         self.assertEqual(mock_get.call_count, 1)
 
+    def test_extract_links_discovers_explicit_html_url_attributes(self):
+        html = """
+        <html><head>
+          <link rel="stylesheet" href="/assets/site.css">
+          <script src="/assets/app.js"></script>
+        </head><body>
+          <a href="/account">Account</a>
+          <form action="/search?q=test"></form>
+          <iframe src="/embed"></iframe>
+          <area href="/map"></area>
+          <script>const hidden = "/not-guessed-from-script";</script>
+        </body></html>
+        """
+
+        links = cyberscraper.extract_links(html, "https://example.com/base")
+
+        self.assertEqual(
+            links,
+            [
+                "https://example.com/account",
+                "https://example.com/assets/app.js",
+                "https://example.com/assets/site.css",
+                "https://example.com/embed",
+                "https://example.com/map",
+                "https://example.com/search?q=test",
+            ],
+        )
+        self.assertNotIn(
+            "https://example.com/not-guessed-from-script",
+            links,
+        )
+
+    def test_extract_links_deduplicates_urls_across_tag_types(self):
+        html = """
+        <a href="/same">One</a>
+        <iframe src="/same"></iframe>
+        <form action="/same"></form>
+        """
+
+        links = cyberscraper.extract_links(html, "https://example.com/")
+
+        self.assertEqual(links, ["https://example.com/same"])
+
     def test_malformed_html_still_yields_valid_links(self):
         html = '<html><body><a href="/ok"><b>Open<a href="/second">Second'
         links = cyberscraper.extract_links(html, "https://example.com")
