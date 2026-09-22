@@ -786,6 +786,7 @@ class ReconIntelligenceTests(unittest.TestCase):
                 "review_parameterized_routes",
                 "review_external_hosts",
                 "review_redirects",
+                "review_resources",
             ],
         )
 
