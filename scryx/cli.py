@@ -234,6 +234,12 @@ def print_recon_intelligence(intelligence: dict) -> None:
         for lead in leads:
             print(f"- {lead['type']}: {lead['count']}")
 
+    next_steps = intelligence.get("next_steps", [])
+    if next_steps:
+        print("Suggested next steps:")
+        for step in next_steps:
+            print(f"- {step['action']}")
+
 
 def print_http_checks(checks: list[dict]) -> None:
     if not checks:
