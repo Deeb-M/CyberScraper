@@ -65,6 +65,24 @@ class PresetTests(unittest.TestCase):
             parser.parse_args(["example.com", "--quick", "--recon"])
 
 
+class ReconMapCliTests(unittest.TestCase):
+    def test_recon_map_prints_grouped_routes_parameters_and_redirects(self):
+        intelligence = {
+            "endpoint_groups": [
+                {"path": "/product", "observed_urls": 20, "parameters": ["productId"], "example_urls": ["https://example.com/product?productId=1"], "redirects": []},
+                {"path": "/my-account", "observed_urls": 1, "parameters": [], "example_urls": ["https://example.com/my-account"], "redirects": ["/login"]},
+            ]
+        }
+        with io.StringIO() as buffer, redirect_stdout(buffer):
+            cli.print_recon_map(intelligence)
+            output = buffer.getvalue()
+        self.assertIn("[RECON MAP]", output)
+        self.assertIn("Endpoint groups: 2", output)
+        self.assertIn("/product (parameters: productId; observed URLs: 20)", output)
+        self.assertIn("/my-account", output)
+        self.assertIn("-> /login", output)
+
+
 class ReportingCliTests(unittest.TestCase):
     def test_report_directory_option_is_available(self):
         args = cli.build_parser().parse_args(
