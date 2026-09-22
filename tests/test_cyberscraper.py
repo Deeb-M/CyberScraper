@@ -384,9 +384,22 @@ class CrawlTests(unittest.TestCase):
                 "https://example.com/logo.png",
             ],
         )
-        self.assertEqual(pages, ["https://example.com/"])
+        self.assertEqual(
+            pages,
+            [
+                "https://example.com/",
+                "https://example.com/about",
+            ],
+        )
         self.assertEqual(errors, [])
-        self.assertEqual(mock_scrape.call_count, 1)
+        self.assertEqual(mock_scrape.call_count, 2)
+        self.assertEqual(
+            [call.args[0] for call in mock_scrape.call_args_list],
+            [
+                "https://example.com/",
+                "https://example.com/about",
+            ],
+        )
 
     @patch("scryx.core.scrape")
     def test_page_routes_remain_eligible_for_queue(self, mock_scrape):
