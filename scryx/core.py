@@ -236,6 +236,11 @@ def is_static_asset(url: str) -> bool:
     return Path(urlparse(url).path).suffix.lower() in STATIC_ASSET_EXTENSIONS
 
 
+def is_crawlable_page(url: str) -> bool:
+    """Return True when a discovered URL is suitable for the HTML crawl queue."""
+    return not is_static_asset(url)
+
+
 def analyze_links(links: list[str]) -> dict:
     """Build deterministic URL-shape intelligence for discovered links."""
     static_assets: list[str] = []
@@ -515,6 +520,8 @@ def crawl(
             if path_is_excluded(link, exclude_path_prefixes):
                 continue
             if has_excluded_extension(link, exclude_extensions):
+                continue
+            if not is_crawlable_page(link):
                 continue
 
             crawl_link = canonical_crawl_url(link)
