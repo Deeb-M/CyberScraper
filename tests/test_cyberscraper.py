@@ -780,6 +780,14 @@ class ReconIntelligenceTests(unittest.TestCase):
             [lead["type"] for lead in intelligence["leads"]],
             ["parameterized_routes", "external_hosts", "redirects"],
         )
+        self.assertEqual(
+            [step["type"] for step in intelligence["next_steps"]],
+            [
+                "review_parameterized_routes",
+                "review_external_hosts",
+                "review_redirects",
+            ],
+        )
 
     def test_recon_intelligence_does_not_treat_external_parameters_as_internal(self):
         internal = ["https://example.com/about"]
