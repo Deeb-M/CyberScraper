@@ -372,11 +372,16 @@ def build_recon_intelligence(
             "action": "Review HTTP error results to separate unavailable routes from transient request failures.",
             "reason": "An error response alone is not evidence of a vulnerability.",
         })
-    if analysis.get("static_assets"):
+    internal_static_assets = [
+        url
+        for url in analysis.get("static_assets", [])
+        if is_internal_link(url, target_url)
+    ]
+    if internal_static_assets:
         next_steps.append({
             "type": "review_resources",
-            "action": "Review the discovered resource inventory when additional application mapping is useful.",
-            "reason": "Static resources are reported but are intentionally kept out of the HTML crawl queue.",
+            "action": "Review the discovered internal resource inventory when additional application mapping is useful.",
+            "reason": "Internal static resources are reported but are intentionally kept out of the HTML crawl queue.",
         })
 
     return {
