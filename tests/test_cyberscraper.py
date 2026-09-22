@@ -754,6 +754,59 @@ class UrlAnalysisTests(unittest.TestCase):
         self.assertEqual(analysis["summary"]["asset_types"], 2)
 
 
+class EndpointGroupTests(unittest.TestCase):
+    def test_endpoint_groups_collapse_parameter_variants_by_path(self):
+        internal = [
+            "https://example.com/",
+            "https://example.com/product?productId=1",
+            "https://example.com/product?productId=2",
+            "https://example.com/login",
+            "https://example.com/app.js?v=1",
+        ]
+        analysis = cyberscraper.analyze_links(internal)
+
+        groups = cyberscraper.build_endpoint_groups(
+            "https://example.com/",
+            internal,
+            analysis,
+            [],
+        )
+
+        self.assertEqual([group["path"] for group in groups], ["/", "/login", "/product"])
+        product = next(group for group in groups if group["path"] == "/product")
+        self.assertEqual(product["observed_urls"], 2)
+        self.assertEqual(product["parameters"], ["productId"])
+        self.assertEqual(len(product["example_urls"]), 2)
+
+    def test_endpoint_groups_include_observed_redirect_destination(self):
+        internal = [
+            "https://example.com/my-account",
+            "https://example.com/login",
+        ]
+        analysis = cyberscraper.analyze_links(internal)
+        checks = [
+            {
+                "url": "https://example.com/my-account",
+                "status": 200,
+                "final_url": "https://example.com/login",
+                "redirected": True,
+                "blocked_redirect": None,
+                "broken": False,
+                "error": None,
+            }
+        ]
+
+        groups = cyberscraper.build_endpoint_groups(
+            "https://example.com/",
+            internal,
+            analysis,
+            checks,
+        )
+
+        account = next(group for group in groups if group["path"] == "/my-account")
+        self.assertEqual(account["redirects"], ["/login"])
+
+
 class ReconIntelligenceTests(unittest.TestCase):
     def test_recon_intelligence_summarizes_hosts_and_leads(self):
         internal = [

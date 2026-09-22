@@ -219,6 +219,26 @@ def print_url_analysis(analysis: dict) -> None:
         print("Parameters: " + ", ".join(analysis["unique_parameters"]))
 
 
+def print_recon_map(intelligence: dict) -> None:
+    """Print a compact route-level map from already collected recon data."""
+    groups = intelligence.get("endpoint_groups", [])
+    if not groups:
+        return
+
+    print("\n[RECON MAP]")
+    print(f"Endpoint groups: {len(groups)}")
+    for group in groups:
+        details = []
+        if group.get("parameters"):
+            details.append("parameters: " + ", ".join(group["parameters"]))
+        if group.get("observed_urls", 0) > 1:
+            details.append(f"observed URLs: {group['observed_urls']}")
+        suffix = f" ({'; '.join(details)})" if details else ""
+        print(f"- {group['path']}{suffix}")
+        for destination in group.get("redirects", []):
+            print(f"  -> {destination}")
+
+
 def print_recon_intelligence(intelligence: dict) -> None:
     hosts = intelligence["hosts"]
     print("\n[RECON INTELLIGENCE]")
@@ -377,6 +397,7 @@ def main() -> int:
         analysis,
         http_checks,
     )
+    print_recon_map(recon_intelligence)
     print_recon_intelligence(recon_intelligence)
 
     report_requested = bool(args.output or args.report or args.report_dir)
