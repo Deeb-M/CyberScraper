@@ -111,14 +111,33 @@ def canonical_crawl_url(url: str) -> str:
 
 
 def extract_links(html: str, base_url: str) -> list[str]:
-    """Extract unique normalized links from HTML."""
+    """Extract unique normalized navigation/resource URLs from HTML.
+
+    This intentionally parses only explicit HTML URL-bearing attributes. It
+    does not execute JavaScript or guess URLs from arbitrary script text.
+    """
     soup = BeautifulSoup(html, "html.parser")
     links: set[str] = set()
 
-    for tag in soup.find_all("a", href=True):
-        normalized = normalize_url(base_url, tag["href"])
-        if normalized is not None:
-            links.add(normalized)
+    url_attributes = {
+        "a": ("href",),
+        "area": ("href",),
+        "form": ("action",),
+        "iframe": ("src",),
+        "frame": ("src",),
+        "script": ("src",),
+        "link": ("href",),
+    }
+
+    for tag_name, attributes in url_attributes.items():
+        for tag in soup.find_all(tag_name):
+            for attribute in attributes:
+                value = tag.get(attribute)
+                if not value:
+                    continue
+                normalized = normalize_url(base_url, value)
+                if normalized is not None:
+                    links.add(normalized)
 
     return sorted(links)
 
