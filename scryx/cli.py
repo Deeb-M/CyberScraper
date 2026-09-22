@@ -208,6 +208,12 @@ def print_url_analysis(analysis: dict) -> None:
     print(f"Parameterized URLs: {summary['parameterized']}")
     print(f"Dynamic candidates: {summary['dynamic_candidates']}")
     print(f"Unique parameters: {summary['unique_parameters']}")
+    if analysis.get("asset_types"):
+        resource_summary = ", ".join(
+            f"{extension}: {count}"
+            for extension, count in analysis["asset_types"].items()
+        )
+        print(f"Resource types: {resource_summary}")
 
     if analysis["unique_parameters"]:
         print("Parameters: " + ", ".join(analysis["unique_parameters"]))
