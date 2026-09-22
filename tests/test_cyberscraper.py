@@ -728,6 +728,14 @@ class UrlAnalysisTests(unittest.TestCase):
         self.assertEqual(analysis["summary"]["parameterized"], 2)
         self.assertEqual(analysis["summary"]["dynamic_candidates"], 1)
         self.assertEqual(analysis["unique_parameters"], ["page", "q", "v"])
+        self.assertEqual(
+            analysis["asset_types"],
+            {
+                ".js": 1,
+                ".pdf": 1,
+            },
+        )
+        self.assertEqual(analysis["summary"]["asset_types"], 2)
 
 
 class ReconIntelligenceTests(unittest.TestCase):
