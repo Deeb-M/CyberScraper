@@ -33,7 +33,7 @@ from .reporting import output_format_for_path, save_report, save_scan_bundle
 
 ANSI = {
     "reset": "\033[0m",
-    "cyan": "\033[36m",
+    "orange": "\033[38;5;208m",
     "green": "\033[32m",
     "yellow": "\033[33m",
     "red": "\033[31m",
@@ -50,7 +50,7 @@ def colorize(text: str, color: str) -> str:
     return f"{ANSI[color]}{text}{ANSI['reset']}"
 
 def heading(text: str) -> str:
-    return colorize(text, "cyan")
+    return colorize(text, "orange")
 
 PRESETS = {
     "quick": {
@@ -264,7 +264,7 @@ def print_recon_map(intelligence: dict) -> None:
         suffix = f" ({'; '.join(details)})" if details else ""
         print(f"- {group['path']}{suffix}")
         for destination in group.get("redirects", []):
-            print(f"  -> {destination}")
+            print("  " + colorize(f"-> {destination}", "yellow"))
 
 
 def print_recon_intelligence(intelligence: dict) -> None:
@@ -307,14 +307,15 @@ def print_http_checks(checks: list[dict]) -> None:
             suffix = f" - blocked redirect -> {item['blocked_redirect']}"
         elif item["redirected"]:
             suffix = f" -> {item['final_url']}"
-        line = f"[{item['status']}] {item['url']}{suffix}"
-        if item.get("blocked_redirect") or item["redirected"]:
-            line = colorize(line, "yellow")
-        elif item["status"] is not None and 200 <= item["status"] < 300:
-            line = colorize(line, "green")
+        status_text = f"[{item['status']}]"
+        if item["status"] is not None and 200 <= item["status"] < 300:
+            status_text = colorize(status_text, "green")
         elif item["status"] is not None and item["status"] >= 400:
-            line = colorize(line, "red")
-        print(line)
+            status_text = colorize(status_text, "red")
+
+        if item.get("blocked_redirect") or item["redirected"]:
+            suffix = colorize(suffix, "yellow")
+        print(f"{status_text} {item['url']}{suffix}")
 
     print(
         "[+] HTTP summary: "
