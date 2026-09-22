@@ -256,6 +256,81 @@ def analyze_links(links: list[str]) -> dict:
     }
 
 
+def build_recon_intelligence(
+    target_url: str,
+    internal: list[str],
+    external: list[str],
+    analysis: dict,
+    http_checks: list[dict] | None = None,
+) -> dict:
+    """Build factual, deterministic recon intelligence from collected results."""
+    http_checks = http_checks or []
+    target_host = urlparse(target_url).netloc.lower()
+    internal_hosts = sorted({urlparse(url).netloc.lower() for url in internal if urlparse(url).netloc})
+    external_hosts = sorted({urlparse(url).netloc.lower() for url in external if urlparse(url).netloc})
+
+    parameterized_urls = [
+        item["url"]
+        for item in analysis.get("parameterized", [])
+        if item.get("url") and is_internal_link(item["url"], target_url)
+    ]
+    dynamic_candidates = [
+        url
+        for url in analysis.get("dynamic_candidates", [])
+        if is_internal_link(url, target_url)
+    ]
+    redirects = [item["url"] for item in http_checks if item.get("redirected")]
+    broken_or_error = [
+        item["url"]
+        for item in http_checks
+        if item.get("broken") or item.get("error")
+    ]
+
+    leads: list[dict[str, object]] = []
+    if parameterized_urls:
+        leads.append({
+            "type": "parameterized_routes",
+            "count": len(parameterized_urls),
+            "items": parameterized_urls,
+            "note": "Internal routes with query parameters were discovered.",
+        })
+    if external_hosts:
+        leads.append({
+            "type": "external_hosts",
+            "count": len(external_hosts),
+            "items": external_hosts,
+            "note": "External hosts were referenced by discovered links; they were not crawled.",
+        })
+    if redirects:
+        leads.append({
+            "type": "redirects",
+            "count": len(redirects),
+            "items": redirects,
+            "note": "Checked URLs with redirect behavior were observed.",
+        })
+    if broken_or_error:
+        leads.append({
+            "type": "http_errors",
+            "count": len(broken_or_error),
+            "items": broken_or_error,
+            "note": "Checked URLs returned an HTTP error status or request error.",
+        })
+
+    return {
+        "target_host": target_host,
+        "hosts": {
+            "internal": internal_hosts,
+            "external": external_hosts,
+            "internal_count": len(internal_hosts),
+            "external_count": len(external_hosts),
+        },
+        "internal_parameterized_routes": parameterized_urls,
+        "internal_dynamic_candidates": dynamic_candidates,
+        "leads": leads,
+        "scope_note": "Recon intelligence is derived only from discovered links and bounded HTTP checks; it is not a vulnerability assessment.",
+    }
+
+
 def _request_with_scoped_redirects(
     url: str,
     timeout: int = DEFAULT_TIMEOUT,
@@ -557,6 +632,13 @@ def build_report(
     crawl_errors = crawl_errors or []
     analysis = analysis or analyze_links(all_links)
     http_checks = http_checks or []
+    recon_intelligence = build_recon_intelligence(
+        final_url,
+        internal,
+        external,
+        analysis,
+        http_checks,
+    )
 
     return {
         "requested_url": requested_url,
@@ -586,6 +668,7 @@ def build_report(
             "external": visible_external,
         },
         "analysis": analysis,
+        "recon_intelligence": recon_intelligence,
         "http_checks": {
             "summary": summarize_http_checks(http_checks),
             "results": http_checks,
