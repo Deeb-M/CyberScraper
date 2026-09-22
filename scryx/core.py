@@ -296,6 +296,66 @@ def analyze_links(links: list[str]) -> dict:
     }
 
 
+def build_endpoint_groups(
+    target_url: str,
+    internal: list[str],
+    analysis: dict,
+    http_checks: list[dict] | None = None,
+) -> list[dict]:
+    """Group discovered internal page URLs by path for a compact recon map."""
+    http_checks = http_checks or []
+    parameter_map = {
+        item["url"]: item.get("parameters", [])
+        for item in analysis.get("parameterized", [])
+        if item.get("url")
+    }
+    check_map = {
+        item["url"]: item
+        for item in http_checks
+        if item.get("url")
+    }
+
+    groups: dict[str, dict] = {}
+    for url in sorted(set(internal)):
+        if not is_internal_link(url, target_url) or is_static_asset(url):
+            continue
+
+        parsed = urlparse(url)
+        path = parsed.path or "/"
+        group = groups.setdefault(
+            path,
+            {
+                "path": path,
+                "observed_urls": 0,
+                "parameters": set(),
+                "example_urls": [],
+                "redirects": [],
+            },
+        )
+        group["observed_urls"] += 1
+        group["parameters"].update(parameter_map.get(url, []))
+        if len(group["example_urls"]) < 3:
+            group["example_urls"].append(url)
+
+        check = check_map.get(url)
+        if check and check.get("redirected") and check.get("final_url"):
+            destination = urlparse(check["final_url"])
+            redirect_path = destination.path or "/"
+            if destination.query:
+                redirect_path += f"?{destination.query}"
+            if redirect_path not in group["redirects"]:
+                group["redirects"].append(redirect_path)
+
+    return [
+        {
+            **group,
+            "parameters": sorted(group["parameters"]),
+            "redirects": sorted(group["redirects"]),
+        }
+        for _path, group in sorted(groups.items())
+    ]
+
+
 def build_recon_intelligence(
     target_url: str,
     internal: list[str],
@@ -393,6 +453,13 @@ def build_recon_intelligence(
             "reason": "Internal static resources are reported but are intentionally kept out of the HTML crawl queue.",
         })
 
+    endpoint_groups = build_endpoint_groups(
+        target_url,
+        internal,
+        analysis,
+        http_checks,
+    )
+
     return {
         "target_host": target_host,
         "hosts": {
@@ -403,6 +470,7 @@ def build_recon_intelligence(
         },
         "internal_parameterized_routes": parameterized_urls,
         "internal_dynamic_candidates": dynamic_candidates,
+        "endpoint_groups": endpoint_groups,
         "leads": leads,
         "next_steps": next_steps,
         "scope_note": "Recon intelligence is derived only from discovered links and bounded HTTP checks; it is not a vulnerability assessment.",
