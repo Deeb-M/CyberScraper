@@ -713,6 +713,22 @@ class TargetPreparationTests(unittest.TestCase):
 
 
 class UrlAnalysisTests(unittest.TestCase):
+    def test_query_parameters_ignores_bare_query_tokens_but_keeps_explicit_blank_values(self):
+        self.assertEqual(
+            cyberscraper.query_parameters(
+                "https://example.com/favicon.ico?favicon.3fpu2ql9ns1a0.ico"
+            ),
+            [],
+        )
+        self.assertEqual(
+            cyberscraper.query_parameters("https://example.com/search?q="),
+            ["q"],
+        )
+        self.assertEqual(
+            cyberscraper.query_parameters("https://example.com/app.js?v=1"),
+            ["v"],
+        )
+
     def test_analysis_reports_assets_parameters_and_dynamic_candidates(self):
         analysis = cyberscraper.analyze_links(
             [
