@@ -790,6 +790,26 @@ class ReconIntelligenceTests(unittest.TestCase):
             ],
         )
 
+    def test_recon_intelligence_keeps_external_resources_out_of_internal_guidance(self):
+        internal = ["https://example.com/about"]
+        external = ["https://cdn.external.test/app.js"]
+        analysis = cyberscraper.analyze_links(internal + external)
+
+        intelligence = cyberscraper.build_recon_intelligence(
+            "https://example.com/",
+            internal,
+            external,
+            analysis,
+            [],
+        )
+
+        self.assertEqual(intelligence["internal_parameterized_routes"], [])
+        self.assertEqual(intelligence["internal_dynamic_candidates"], [])
+        self.assertEqual(
+            [step["type"] for step in intelligence["next_steps"]],
+            ["review_external_hosts", "review_resources"],
+        )
+
     def test_recon_intelligence_does_not_treat_external_parameters_as_internal(self):
         internal = ["https://example.com/about"]
         external = ["https://outside.test/search?q=test"]
