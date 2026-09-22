@@ -80,7 +80,11 @@ PRESETS = {
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="scryx",
-        description="Scryx - focused web reconnaissance for authorized security work.",
+        description=(
+            "Scryx - focused web reconnaissance for authorized security work, "
+            "with URL analysis, Recon Map, Recon Intelligence, HTTP checks, "
+            "scope controls, and structured reporting."
+        ),
     )
     parser.add_argument(
         "url",
