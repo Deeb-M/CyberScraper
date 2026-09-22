@@ -61,6 +61,8 @@ scryx example.com --recon --report
   - internal parameterized routes and dynamic candidates
   - factual recon leads
   - deterministic suggested next steps based only on observed scan data
+- Route-level Recon Map with observed parameters and URL counts
+- Restrained terminal color hierarchy for recon data, redirects, and errors
 - Bounded HTTP status checks
 - Redirect reporting
 - Broken/error result reporting
@@ -119,7 +121,7 @@ Explicit options can override preset values when needed.
 The simplest installation from the public GitHub repository is:
 
 ```bash
-pipx install git+https://github.com/Deeb-M/Scryx.git
+pipx install git+https://github.com/Deeb-M/Scryx.git@v1.1.1
 ```
 
 If `pipx` is not installed yet:
@@ -133,7 +135,7 @@ pipx ensurepath
 You can also clone the repository and install from the local source tree:
 
 ```bash
-git clone https://github.com/Deeb-M/Scryx.git
+git clone --branch v1.1.1 https://github.com/Deeb-M/Scryx.git
 cd Scryx
 pipx install .
 ```
@@ -267,7 +269,7 @@ Scryx keeps reconnaissance deliberately bounded.
 - Crawl delay is enforced between every secondary page request, including error and maximum-depth paths
 - `robots.txt` is not treated as authorization or as an automatic scope boundary; explicit permission and program scope remain authoritative
 
-These limits are intentional while the tool is developed and validated.
+These limits are intentional safety and scope controls for normal Scryx use.
 
 ## URL-analysis terminology
 
@@ -280,7 +282,7 @@ Scryx uses deterministic URL-shape heuristics rather than claiming to understand
 
 A dynamic candidate is a reconnaissance hint, not proof that the server executes dynamic code.
 
-The v1.1 development work also summarizes resource types and adds a Recon Intelligence layer with factual leads and suggested next steps. These suggestions are workflow guidance derived from observed scan data; they are not vulnerability findings.
+Scryx v1.1.1 also summarizes resource types, provides a route-level Recon Map, and adds a Recon Intelligence layer with factual leads and suggested next steps. These suggestions are workflow guidance derived from observed scan data; they are not vulnerability findings.
 
 ## Developer installation
 
