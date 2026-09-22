@@ -32,7 +32,7 @@ scryx example.com --recon --report
 - Installable Kali/Linux CLI through `pipx`
 - Short global command: `scryx`
 - Missing URL schemes default to HTTPS
-- HTTP/HTTPS link discovery from explicit HTML URL-bearing attributes (`a`, `area`, `form`, `iframe`, `frame`, `script`, and `link`)
+- HTTP/HTTPS link discovery from explicit HTML URL-bearing attributes (`a`, `area`, `form`, `iframe`, `frame`, `script`, and `link`) from explicit HTML URL-bearing attributes (`a`, `area`, `form`, `iframe`, `frame`, `script`, and `link`)
 - Relative-to-absolute URL normalization
 - Duplicate and fragment removal
 - Internal/external classification
@@ -51,7 +51,7 @@ scryx example.com --recon --report
   - static assets/files
   - parameterized URLs
   - dynamic candidates
-  - unique query-parameter names\n  - discovered static resource types\n- Static resources remain visible in discovery/analysis but are kept out of the HTML crawl queue\n- Recon Intelligence summary:\n  - observed internal/external hosts\n  - internal parameterized routes and dynamic candidates\n  - factual recon leads\n  - deterministic suggested next steps based only on observed scan data
+  - unique query-parameter names\n  - discovered static resource types\n- Static resources remain visible in discovery/analysis but are kept out of the HTML crawl queue\n- Recon Intelligence summary:\n  - observed internal/external hosts\n  - internal parameterized routes and dynamic candidates\n  - factual recon leads\n  - deterministic suggested next steps based only on observed scan data\n  - discovered static resource types\n- Static resources remain visible in discovery/analysis but are kept out of the HTML crawl queue\n- Recon Intelligence summary:\n  - observed internal/external hosts\n  - internal parameterized routes and dynamic candidates\n  - factual recon leads\n  - deterministic suggested next steps based only on observed scan data
 - Bounded HTTP status checks
 - Redirect reporting
 - Broken/error result reporting
@@ -269,7 +269,7 @@ Scryx uses deterministic URL-shape heuristics rather than claiming to understand
 - **Dynamic candidate**: parameterized URL that is not classified as a static asset.
 - **Page/route**: URL not classified as a static asset.
 
-A dynamic candidate is a reconnaissance hint, not proof that the server executes dynamic code.\n\nThe v1.1 development work also summarizes resource types and adds a Recon Intelligence layer with factual leads and suggested next steps. These suggestions are workflow guidance derived from observed scan data; they are not vulnerability findings.
+A dynamic candidate is a reconnaissance hint, not proof that the server executes dynamic code.\n\nThe v1.1 development work also summarizes resource types and adds a Recon Intelligence layer with factual leads and suggested next steps. These suggestions are workflow guidance derived from observed scan data; they are not vulnerability findings.\n\nThe v1.1 development work also summarizes resource types and adds a Recon Intelligence layer with factual leads and suggested next steps. These suggestions are workflow guidance derived from observed scan data; they are not vulnerability findings.
 
 ## Developer installation
 
@@ -351,7 +351,7 @@ Scryx/
 
 **v1.0.0rc1 — Release candidate:** package naming check completed, tracked repository contents reviewed, Kali deep/reporting validation passed, and the release-candidate acceptance test completed successfully.
 
-**v1.0.0 — Stable release:** simple Kali installation, short normal workflow, stable presets, bounded reconnaissance, useful reports, clean documentation, and final Kali validation completed.\n\n**v1.1 — Recon Intelligence (in development):** broader explicit HTML URL discovery, static-resource crawl separation, resource-type summaries, factual recon leads, and deterministic suggested next steps.
+**v1.0.0 — Stable release:** simple Kali installation, short normal workflow, stable presets, bounded reconnaissance, useful reports, clean documentation, and final Kali validation completed.\n\n**v1.1 — Recon Intelligence (in development):** broader explicit HTML URL discovery, static-resource crawl separation, resource-type summaries, factual recon leads, and deterministic suggested next steps.\n\n**v1.1 — Recon Intelligence (in development):** broader explicit HTML URL discovery, static-resource crawl separation, resource-type summaries, factual recon leads, and deterministic suggested next steps.
 
 ## Responsible use
 
