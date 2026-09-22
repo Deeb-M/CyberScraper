@@ -151,6 +151,14 @@ def render_text_report(report: dict) -> str:
             if lead.get("note"):
                 lines.append(f"  {lead['note']}")
 
+    next_steps = intelligence.get("next_steps", [])
+    if next_steps:
+        lines.extend(["", "Suggested Next Steps", "--------------------"])
+        for step in next_steps:
+            lines.append(f"- {step.get('action', '')}")
+            if step.get("reason"):
+                lines.append(f"  Why: {step['reason']}")
+
     unique_parameters = report.get("analysis", {}).get("unique_parameters", [])
     if unique_parameters:
         lines.extend(["", "Parameters", "----------", ", ".join(unique_parameters)])
