@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 import requests
 
@@ -29,6 +30,27 @@ from .core import (
     summarize_http_checks,
 )
 from .reporting import output_format_for_path, save_report, save_scan_bundle
+
+ANSI = {
+    "reset": "\033[0m",
+    "cyan": "\033[36m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "red": "\033[31m",
+}
+_COLOR_ENABLED = False
+
+def configure_color(mode: str) -> None:
+    global _COLOR_ENABLED
+    _COLOR_ENABLED = mode == "always" or (mode == "auto" and sys.stdout.isatty())
+
+def colorize(text: str, color: str) -> str:
+    if not _COLOR_ENABLED:
+        return text
+    return f"{ANSI[color]}{text}{ANSI['reset']}"
+
+def heading(text: str) -> str:
+    return colorize(text, "cyan")
 
 PRESETS = {
     "quick": {
@@ -156,6 +178,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Base directory for scan bundles (implies --report).",
     )
     parser.add_argument(
+        "--color",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="Terminal colors: auto for TTY only (default), always, or never.",
+    )
+    parser.add_argument(
         "--timeout",
         type=int,
         default=DEFAULT_TIMEOUT,
@@ -202,7 +230,7 @@ def resolve_scan_settings(args: argparse.Namespace) -> dict:
 
 def print_url_analysis(analysis: dict) -> None:
     summary = analysis["summary"]
-    print("\n[URL ANALYSIS]")
+    print("\n" + heading("[URL ANALYSIS]"))
     print(f"Pages/routes: {summary['pages']}")
     print(f"Static assets/files: {summary['static_assets']}")
     print(f"Parameterized URLs: {summary['parameterized']}")
@@ -225,7 +253,7 @@ def print_recon_map(intelligence: dict) -> None:
     if not groups:
         return
 
-    print("\n[RECON MAP]")
+    print("\n" + heading("[RECON MAP]"))
     print(f"Endpoint groups: {len(groups)}")
     for group in groups:
         details = []
@@ -241,7 +269,7 @@ def print_recon_map(intelligence: dict) -> None:
 
 def print_recon_intelligence(intelligence: dict) -> None:
     hosts = intelligence["hosts"]
-    print("\n[RECON INTELLIGENCE]")
+    print("\n" + heading("[RECON INTELLIGENCE]"))
     print(f"Target host: {intelligence['target_host']}")
     print(f"Internal hosts observed: {hosts['internal_count']}")
     print(f"External hosts referenced: {hosts['external_count']}")
@@ -267,11 +295,11 @@ def print_http_checks(checks: list[dict]) -> None:
         return
 
     summary = summarize_http_checks(checks)
-    print(f"\n[HTTP CHECKS] ({summary['checked']})")
+    print("\n" + heading(f"[HTTP CHECKS] ({summary['checked']})"))
 
     for item in checks:
         if item["error"]:
-            print(f"[ERR] {item['url']} - {item['error']}")
+            print(colorize(f"[ERR] {item['url']} - {item['error']}", "red"))
             continue
 
         suffix = ""
@@ -279,7 +307,14 @@ def print_http_checks(checks: list[dict]) -> None:
             suffix = f" - blocked redirect -> {item['blocked_redirect']}"
         elif item["redirected"]:
             suffix = f" -> {item['final_url']}"
-        print(f"[{item['status']}] {item['url']}{suffix}")
+        line = f"[{item['status']}] {item['url']}{suffix}"
+        if item.get("blocked_redirect") or item["redirected"]:
+            line = colorize(line, "yellow")
+        elif item["status"] is not None and 200 <= item["status"] < 300:
+            line = colorize(line, "green")
+        elif item["status"] is not None and item["status"] >= 400:
+            line = colorize(line, "red")
+        print(line)
 
     print(
         "[+] HTTP summary: "
@@ -292,6 +327,7 @@ def print_http_checks(checks: list[dict]) -> None:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    configure_color(args.color)
 
     if not args.url:
         parser.print_help()

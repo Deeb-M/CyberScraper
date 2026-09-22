@@ -83,6 +83,26 @@ class ReconMapCliTests(unittest.TestCase):
         self.assertIn("-> /login", output)
 
 
+
+class ColorCliTests(unittest.TestCase):
+    def tearDown(self):
+        cli.configure_color("never")
+
+    def test_color_option_defaults_to_auto(self):
+        args = cli.build_parser().parse_args(["example.com"])
+        self.assertEqual(args.color, "auto")
+
+    def test_color_always_adds_ansi_and_never_does_not(self):
+        cli.configure_color("always")
+        self.assertIn("\033[36m", cli.heading("[RECON MAP]"))
+        cli.configure_color("never")
+        self.assertEqual(cli.heading("[RECON MAP]"), "[RECON MAP]")
+
+    @patch("scryx.cli.sys.stdout.isatty", return_value=False)
+    def test_auto_disables_color_when_output_is_not_tty(self, _mock_isatty):
+        cli.configure_color("auto")
+        self.assertEqual(cli.heading("[HTTP CHECKS]"), "[HTTP CHECKS]")
+
 class ReportingCliTests(unittest.TestCase):
     def test_report_directory_option_is_available(self):
         args = cli.build_parser().parse_args(
