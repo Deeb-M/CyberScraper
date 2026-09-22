@@ -34,7 +34,7 @@ from .reporting import output_format_for_path, save_report, save_scan_bundle
 ANSI = {
     "reset": "\033[0m",
     "orange": "\033[38;5;208m",
-    "green": "\033[32m",
+    "cyan": "\033[36m",
     "yellow": "\033[33m",
     "red": "\033[31m",
 }
@@ -233,9 +233,9 @@ def print_url_analysis(analysis: dict) -> None:
     print("\n" + heading("[URL ANALYSIS]"))
     print(f"Pages/routes: {summary['pages']}")
     print(f"Static assets/files: {summary['static_assets']}")
-    print(f"Parameterized URLs: {summary['parameterized']}")
-    print(f"Dynamic candidates: {summary['dynamic_candidates']}")
-    print(f"Unique parameters: {summary['unique_parameters']}")
+    print("Parameterized URLs: " + colorize(str(summary["parameterized"]), "cyan"))
+    print("Dynamic candidates: " + colorize(str(summary["dynamic_candidates"]), "cyan"))
+    print("Unique parameters: " + colorize(str(summary["unique_parameters"]), "cyan"))
     if analysis.get("asset_types"):
         resource_summary = ", ".join(
             f"{extension}: {count}"
@@ -244,7 +244,7 @@ def print_url_analysis(analysis: dict) -> None:
         print(f"Resource types: {resource_summary}")
 
     if analysis["unique_parameters"]:
-        print("Parameters: " + ", ".join(analysis["unique_parameters"]))
+        print("Parameters: " + colorize(", ".join(analysis["unique_parameters"]), "cyan"))
 
 
 def print_recon_map(intelligence: dict) -> None:
@@ -262,7 +262,7 @@ def print_recon_map(intelligence: dict) -> None:
         if group.get("observed_urls", 0) > 1:
             details.append(f"observed URLs: {group['observed_urls']}")
         suffix = f" ({'; '.join(details)})" if details else ""
-        print(f"- {group['path']}{suffix}")
+        print("- " + colorize(f"{group['path']}{suffix}", "cyan"))
         for destination in group.get("redirects", []):
             print("  " + colorize(f"-> {destination}", "yellow"))
 
@@ -272,10 +272,10 @@ def print_recon_intelligence(intelligence: dict) -> None:
     print("\n" + heading("[RECON INTELLIGENCE]"))
     print(f"Target host: {intelligence['target_host']}")
     print(f"Internal hosts observed: {hosts['internal_count']}")
-    print(f"External hosts referenced: {hosts['external_count']}")
-    print(f"Internal parameterized URLs: {len(intelligence['internal_parameterized_routes'])}")
-    print(f"Parameterized endpoint groups: {intelligence['internal_parameterized_endpoint_count']}")
-    print(f"Internal dynamic candidates: {len(intelligence['internal_dynamic_candidates'])}")
+    print("External hosts referenced: " + colorize(str(hosts["external_count"]), "cyan"))
+    print("Internal parameterized URLs: " + colorize(str(len(intelligence["internal_parameterized_routes"])), "cyan"))
+    print("Parameterized endpoint groups: " + colorize(str(intelligence["internal_parameterized_endpoint_count"]), "cyan"))
+    print("Internal dynamic candidates: " + colorize(str(len(intelligence["internal_dynamic_candidates"])), "cyan"))
 
     leads = intelligence.get("leads", [])
     if leads:
