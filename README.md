@@ -2,7 +2,7 @@
 
 Scryx is a focused web reconnaissance CLI for authorized security work. It grew from the original CyberScraper project into an installable command-line tool designed for Kali Linux and normal terminal use.
 
-> Current stable release: **v1.1.1**
+> Current stable release: **v1.1.2**
 >
 > Recon Intelligence is now part of the stable release.
 >
@@ -121,7 +121,7 @@ Explicit options can override preset values when needed.
 The simplest installation from the public GitHub repository is:
 
 ```bash
-pipx install git+https://github.com/Deeb-M/Scryx.git@v1.1.1
+pipx install git+https://github.com/Deeb-M/Scryx.git@v1.1.2
 ```
 
 If `pipx` is not installed yet:
@@ -135,7 +135,7 @@ pipx ensurepath
 You can also clone the repository and install from the local source tree:
 
 ```bash
-git clone --branch v1.1.1 https://github.com/Deeb-M/Scryx.git
+git clone --branch v1.1.2 https://github.com/Deeb-M/Scryx.git
 cd Scryx
 pipx install .
 ```
@@ -282,7 +282,7 @@ Scryx uses deterministic URL-shape heuristics rather than claiming to understand
 
 A dynamic candidate is a reconnaissance hint, not proof that the server executes dynamic code.
 
-Scryx v1.1.1 also summarizes resource types, provides a route-level Recon Map, and adds a Recon Intelligence layer with factual leads and suggested next steps. These suggestions are workflow guidance derived from observed scan data; they are not vulnerability findings.
+Scryx v1.1.2 also summarizes resource types, provides a route-level Recon Map, and adds a Recon Intelligence layer with factual leads and suggested next steps. These suggestions are workflow guidance derived from observed scan data; they are not vulnerability findings.
 
 ## Developer installation
 
@@ -366,7 +366,7 @@ Scryx/
 
 **v1.0.0 — Stable release:** simple Kali installation, short normal workflow, stable presets, bounded reconnaissance, useful reports, clean documentation, and final Kali validation completed.
 
-**v1.1.1 — Recon Intelligence:** broader explicit HTML URL discovery, static-resource crawl separation, resource-type summaries, route-level Recon Map, factual recon leads, deterministic suggested next steps, and restrained terminal color highlighting.
+**v1.1.2 — Recon Intelligence:** broader explicit HTML URL discovery, static-resource crawl separation, resource-type summaries, route-level Recon Map, factual recon leads, deterministic suggested next steps, and restrained terminal color highlighting.
 
 ## Responsible use
 
