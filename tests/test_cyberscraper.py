@@ -786,7 +786,6 @@ class ReconIntelligenceTests(unittest.TestCase):
                 "review_parameterized_routes",
                 "review_external_hosts",
                 "review_redirects",
-                "review_resources",
             ],
         )
 
@@ -807,7 +806,7 @@ class ReconIntelligenceTests(unittest.TestCase):
         self.assertEqual(intelligence["internal_dynamic_candidates"], [])
         self.assertEqual(
             [step["type"] for step in intelligence["next_steps"]],
-            ["review_external_hosts", "review_resources"],
+            ["review_external_hosts"],
         )
 
     def test_recon_intelligence_does_not_treat_external_parameters_as_internal(self):
