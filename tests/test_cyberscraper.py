@@ -652,6 +652,66 @@ class UrlAnalysisTests(unittest.TestCase):
         self.assertEqual(analysis["unique_parameters"], ["page", "q", "v"])
 
 
+class ReconIntelligenceTests(unittest.TestCase):
+    def test_recon_intelligence_summarizes_hosts_and_leads(self):
+        internal = [
+            "https://example.com/search?q=test",
+            "https://example.com/about",
+        ]
+        external = [
+            "https://docs.external.test/guide",
+            "https://cdn.external.test/app.js",
+        ]
+        analysis = cyberscraper.analyze_links(internal + external)
+        checks = [
+            {
+                "url": "https://example.com/search?q=test",
+                "status": 302,
+                "final_url": "https://example.com/results?q=test",
+                "redirected": True,
+                "blocked_redirect": None,
+                "broken": False,
+                "error": None,
+            }
+        ]
+
+        intelligence = cyberscraper.build_recon_intelligence(
+            "https://example.com/",
+            internal,
+            external,
+            analysis,
+            checks,
+        )
+
+        self.assertEqual(intelligence["target_host"], "example.com")
+        self.assertEqual(intelligence["hosts"]["internal_count"], 1)
+        self.assertEqual(intelligence["hosts"]["external_count"], 2)
+        self.assertEqual(
+            intelligence["internal_parameterized_routes"],
+            ["https://example.com/search?q=test"],
+        )
+        self.assertEqual(
+            [lead["type"] for lead in intelligence["leads"]],
+            ["parameterized_routes", "external_hosts", "redirects"],
+        )
+
+    def test_recon_intelligence_does_not_treat_external_parameters_as_internal(self):
+        internal = ["https://example.com/about"]
+        external = ["https://outside.test/search?q=test"]
+        analysis = cyberscraper.analyze_links(internal + external)
+
+        intelligence = cyberscraper.build_recon_intelligence(
+            "https://example.com/",
+            internal,
+            external,
+            analysis,
+            [],
+        )
+
+        self.assertEqual(intelligence["internal_parameterized_routes"], [])
+        self.assertEqual(intelligence["internal_dynamic_candidates"], [])
+
+
 class HttpCheckTests(unittest.TestCase):
     @patch("scryx.core.requests.get")
     def test_status_check_records_redirect_and_closes_response(self, mock_get):
