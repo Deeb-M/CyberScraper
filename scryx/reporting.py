@@ -134,6 +134,14 @@ def render_text_report(report: dict) -> str:
         f"Request errors: {http.get('errors', 0)}",
     ]
 
+    asset_types = report.get("analysis", {}).get("asset_types", {})
+    if asset_types:
+        resource_summary = ", ".join(
+            f"{extension}: {count}"
+            for extension, count in asset_types.items()
+        )
+        url_analysis_index = lines.index("Recon Intelligence")
+        lines.insert(url_analysis_index - 1, f"Resource types: {resource_summary}")
 
     leads = intelligence.get("leads", [])
     if leads:
