@@ -299,7 +299,7 @@ def print_http_checks(checks: list[dict]) -> None:
 
     for item in checks:
         if item["error"]:
-            print(f"[ERR] {item['url']} - {item['error']}")
+            print(colorize(f"[ERR] {item['url']} - {item['error']}", "red"))
             continue
 
         suffix = ""
@@ -307,7 +307,14 @@ def print_http_checks(checks: list[dict]) -> None:
             suffix = f" - blocked redirect -> {item['blocked_redirect']}"
         elif item["redirected"]:
             suffix = f" -> {item['final_url']}"
-        print(f"[{item['status']}] {item['url']}{suffix}")
+        line = f"[{item['status']}] {item['url']}{suffix}"
+        if item.get("blocked_redirect") or item["redirected"]:
+            line = colorize(line, "yellow")
+        elif item["status"] is not None and 200 <= item["status"] < 300:
+            line = colorize(line, "green")
+        elif item["status"] is not None and item["status"] >= 400:
+            line = colorize(line, "red")
+        print(line)
 
     print(
         "[+] HTTP summary: "
