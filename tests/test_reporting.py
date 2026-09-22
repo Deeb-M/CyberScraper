@@ -63,6 +63,25 @@ class ReportingTests(unittest.TestCase):
                 "dynamic_candidates": ["https://example.com/search?q=test"],
                 "unique_parameters": ["q", "v"],
             },
+            "recon_intelligence": {
+                "target_host": "example.com",
+                "hosts": {
+                    "internal": ["example.com"],
+                    "external": ["external.test"],
+                    "internal_count": 1,
+                    "external_count": 1,
+                },
+                "internal_parameterized_routes": ["https://example.com/search?q=test"],
+                "internal_dynamic_candidates": ["https://example.com/search?q=test"],
+                "leads": [
+                    {
+                        "type": "parameterized_routes",
+                        "count": 1,
+                        "items": ["https://example.com/search?q=test"],
+                        "note": "Internal routes with query parameters were discovered.",
+                    }
+                ],
+            },
             "http_checks": {
                 "summary": {
                     "checked": 2,
@@ -122,6 +141,9 @@ class ReportingTests(unittest.TestCase):
         self.assertIn("Target: https://example.com", text)
         self.assertIn("Parameterized URLs: 2", text)
         self.assertIn("Broken/error results: 1", text)
+        self.assertIn("Recon Intelligence", text)
+        self.assertIn("External hosts referenced: 1", text)
+        self.assertIn("parameterized_routes: 1", text)
         self.assertIn("[404] https://external.test/page", text)
 
     def test_scan_bundle_creates_json_csv_and_txt(self):
