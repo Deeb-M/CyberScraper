@@ -227,8 +227,17 @@ def classify_links(
 
 
 def query_parameters(url: str) -> list[str]:
-    """Return sorted unique query-parameter names from a URL."""
-    return sorted({key for key, _value in parse_qsl(urlparse(url).query, keep_blank_values=True)})
+    """Return sorted unique names from explicit query key/value fields."""
+    query = urlparse(url).query
+    explicit_fields = "&".join(
+        field for field in query.split("&") if "=" in field
+    )
+    return sorted(
+        {
+            key
+            for key, _value in parse_qsl(explicit_fields, keep_blank_values=True)
+        }
+    )
 
 
 def is_static_asset(url: str) -> bool:
