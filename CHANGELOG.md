@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.1
+
+Recon Intelligence and terminal usability release.
+
+- Expands explicit HTML URL discovery across links, forms, frames, scripts, and stylesheet/resource references.
+- Keeps static resources visible for analysis while excluding them from the HTML crawl queue.
+- Adds route-level Recon Map grouping, including observed parameter names and URL counts.
+- Adds Recon Intelligence summaries for hosts, parameterized routes, dynamic candidates, factual leads, and deterministic next steps.
+- Clarifies the distinction between parameterized URLs and parameterized endpoint groups.
+- Adds terminal color modes and a restrained color hierarchy for headings, noteworthy recon data, redirects, and errors.
+- Keeps normal HTTP 2xx results unaccented so routine success does not compete visually with recon findings.
+- Preserves bounded crawling, scope enforcement, reporting, and responsible-use safeguards.
+
+
 ## 1.0.1
 
 Small usability patch for report bundles.
