@@ -2,9 +2,9 @@
 
 Scryx is a focused web reconnaissance CLI for authorized security work. It grew from the original CyberScraper project into an installable command-line tool designed for Kali Linux and normal terminal use.
 
-> Current stable release: **v1.0.1**
+> Current stable release: **v1.1.1**
 >
-> Development branch: **v1.1 Recon Intelligence**
+> Recon Intelligence is now part of the stable release.
 >
 > The repository is public. Use Scryx only on systems you own or where you have explicit permission to perform reconnaissance or security testing.
 
@@ -364,7 +364,7 @@ Scryx/
 
 **v1.0.0 — Stable release:** simple Kali installation, short normal workflow, stable presets, bounded reconnaissance, useful reports, clean documentation, and final Kali validation completed.
 
-**v1.1 — Recon Intelligence (in development):** broader explicit HTML URL discovery, static-resource crawl separation, resource-type summaries, factual recon leads, and deterministic suggested next steps.
+**v1.1.1 — Recon Intelligence:** broader explicit HTML URL discovery, static-resource crawl separation, resource-type summaries, route-level Recon Map, factual recon leads, deterministic suggested next steps, and restrained terminal color highlighting.
 
 ## Responsible use
 
