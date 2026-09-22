@@ -308,9 +308,7 @@ def print_http_checks(checks: list[dict]) -> None:
         elif item["redirected"]:
             suffix = f" -> {item['final_url']}"
         status_text = f"[{item['status']}]"
-        if item["status"] is not None and 200 <= item["status"] < 300:
-            status_text = colorize(status_text, "green")
-        elif item["status"] is not None and item["status"] >= 400:
+        if item["status"] is not None and item["status"] >= 400:
             status_text = colorize(status_text, "red")
 
         if item.get("blocked_redirect") or item["redirected"]:
