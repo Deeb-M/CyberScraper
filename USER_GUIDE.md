@@ -1,6 +1,6 @@
 # Scryx User Guide
 
-This guide explains how to use Scryx in normal authorized reconnaissance workflows. The stable release is v1.0.1; the current v1.1 development branch adds Recon Intelligence and broader explicit HTML URL discovery.
+This guide explains how to use Scryx in normal authorized reconnaissance workflows. The stable release is v1.1.1 and includes Recon Intelligence, broader explicit HTML URL discovery, route-level Recon Map output, and terminal color highlighting.
 
 > Use Scryx only on systems you own or where you have explicit permission to perform reconnaissance or security testing.
 
@@ -28,7 +28,7 @@ scryx --help
 Expected stable version:
 
 ```text
-Scryx 1.0.1
+Scryx 1.1.1
 ```
 
 ## 2. Basic syntax
@@ -176,7 +176,7 @@ A dynamic candidate is only a reconnaissance hint. It does not prove that server
 
 Important in v1.0.0: `--internal-only` controls which link groups are displayed, but URL analysis is calculated from all discovered links. Therefore an external URL can still contribute a parameter name to the URL-analysis summary.
 
-### Recon Intelligence (v1.1 development)
+### Recon Intelligence (v1.1.1)
 
 After URL analysis, Scryx can summarize observed hosts, internal parameterized routes, dynamic candidates, factual recon leads, and suggested next steps.
 
