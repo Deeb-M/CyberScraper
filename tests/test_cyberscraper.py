@@ -357,6 +357,84 @@ class CrawlTests(unittest.TestCase):
         self.assertEqual(links, ["https://example.com/"])
 
     @patch("scryx.core.scrape")
+    def test_static_resources_are_discovered_but_not_queued(self, mock_scrape):
+        mock_scrape.return_value = (
+            [
+                "https://example.com/about",
+                "https://example.com/assets/app.js",
+                "https://example.com/assets/site.css",
+                "https://example.com/logo.png",
+            ],
+            "https://example.com/",
+        )
+
+        links, _final_url, pages, errors = cyberscraper.crawl(
+            "https://example.com/",
+            depth=1,
+            max_pages=10,
+            delay=0,
+        )
+
+        self.assertEqual(
+            links,
+            [
+                "https://example.com/about",
+                "https://example.com/assets/app.js",
+                "https://example.com/assets/site.css",
+                "https://example.com/logo.png",
+            ],
+        )
+        self.assertEqual(
+            pages,
+            [
+                "https://example.com/",
+                "https://example.com/about",
+            ],
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(mock_scrape.call_count, 2)
+        self.assertEqual(
+            [call.args[0] for call in mock_scrape.call_args_list],
+            [
+                "https://example.com/",
+                "https://example.com/about",
+            ],
+        )
+
+    @patch("scryx.core.scrape")
+    def test_page_routes_remain_eligible_for_queue(self, mock_scrape):
+        mock_scrape.side_effect = [
+            (
+                [
+                    "https://example.com/about",
+                    "https://example.com/search?q=test",
+                    "https://example.com/app.js",
+                ],
+                "https://example.com/",
+            ),
+            ([], "https://example.com/about"),
+            ([], "https://example.com/search?q=test"),
+        ]
+
+        _links, _final_url, pages, errors = cyberscraper.crawl(
+            "https://example.com/",
+            depth=1,
+            max_pages=10,
+            delay=0,
+        )
+
+        self.assertEqual(
+            pages,
+            [
+                "https://example.com/",
+                "https://example.com/about",
+                "https://example.com/search?q=test",
+            ],
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(mock_scrape.call_count, 3)
+
+    @patch("scryx.core.scrape")
     def test_max_pages_stops_crawl(self, mock_scrape):
         mock_scrape.side_effect = [
             (
@@ -650,6 +728,102 @@ class UrlAnalysisTests(unittest.TestCase):
         self.assertEqual(analysis["summary"]["parameterized"], 2)
         self.assertEqual(analysis["summary"]["dynamic_candidates"], 1)
         self.assertEqual(analysis["unique_parameters"], ["page", "q", "v"])
+        self.assertEqual(
+            analysis["asset_types"],
+            {
+                ".js": 1,
+                ".pdf": 1,
+            },
+        )
+        self.assertEqual(analysis["summary"]["asset_types"], 2)
+
+
+class ReconIntelligenceTests(unittest.TestCase):
+    def test_recon_intelligence_summarizes_hosts_and_leads(self):
+        internal = [
+            "https://example.com/search?q=test",
+            "https://example.com/about",
+        ]
+        external = [
+            "https://docs.external.test/guide",
+            "https://cdn.external.test/app.js",
+        ]
+        analysis = cyberscraper.analyze_links(internal + external)
+        checks = [
+            {
+                "url": "https://example.com/search?q=test",
+                "status": 302,
+                "final_url": "https://example.com/results?q=test",
+                "redirected": True,
+                "blocked_redirect": None,
+                "broken": False,
+                "error": None,
+            }
+        ]
+
+        intelligence = cyberscraper.build_recon_intelligence(
+            "https://example.com/",
+            internal,
+            external,
+            analysis,
+            checks,
+        )
+
+        self.assertEqual(intelligence["target_host"], "example.com")
+        self.assertEqual(intelligence["hosts"]["internal_count"], 1)
+        self.assertEqual(intelligence["hosts"]["external_count"], 2)
+        self.assertEqual(
+            intelligence["internal_parameterized_routes"],
+            ["https://example.com/search?q=test"],
+        )
+        self.assertEqual(
+            [lead["type"] for lead in intelligence["leads"]],
+            ["parameterized_routes", "external_hosts", "redirects"],
+        )
+        self.assertEqual(
+            [step["type"] for step in intelligence["next_steps"]],
+            [
+                "review_parameterized_routes",
+                "review_external_hosts",
+                "review_redirects",
+            ],
+        )
+
+    def test_recon_intelligence_keeps_external_resources_out_of_internal_guidance(self):
+        internal = ["https://example.com/about"]
+        external = ["https://cdn.external.test/app.js"]
+        analysis = cyberscraper.analyze_links(internal + external)
+
+        intelligence = cyberscraper.build_recon_intelligence(
+            "https://example.com/",
+            internal,
+            external,
+            analysis,
+            [],
+        )
+
+        self.assertEqual(intelligence["internal_parameterized_routes"], [])
+        self.assertEqual(intelligence["internal_dynamic_candidates"], [])
+        self.assertEqual(
+            [step["type"] for step in intelligence["next_steps"]],
+            ["review_external_hosts"],
+        )
+
+    def test_recon_intelligence_does_not_treat_external_parameters_as_internal(self):
+        internal = ["https://example.com/about"]
+        external = ["https://outside.test/search?q=test"]
+        analysis = cyberscraper.analyze_links(internal + external)
+
+        intelligence = cyberscraper.build_recon_intelligence(
+            "https://example.com/",
+            internal,
+            external,
+            analysis,
+            [],
+        )
+
+        self.assertEqual(intelligence["internal_parameterized_routes"], [])
+        self.assertEqual(intelligence["internal_dynamic_candidates"], [])
 
 
 class HttpCheckTests(unittest.TestCase):
@@ -789,6 +963,49 @@ class RedirectHardeningTests(unittest.TestCase):
         )
         self.assertFalse(result["broken"])
         self.assertEqual(mock_get.call_count, 1)
+
+    def test_extract_links_discovers_explicit_html_url_attributes(self):
+        html = """
+        <html><head>
+          <link rel="stylesheet" href="/assets/site.css">
+          <script src="/assets/app.js"></script>
+        </head><body>
+          <a href="/account">Account</a>
+          <form action="/search?q=test"></form>
+          <iframe src="/embed"></iframe>
+          <area href="/map"></area>
+          <script>const hidden = "/not-guessed-from-script";</script>
+        </body></html>
+        """
+
+        links = cyberscraper.extract_links(html, "https://example.com/base")
+
+        self.assertEqual(
+            links,
+            [
+                "https://example.com/account",
+                "https://example.com/assets/app.js",
+                "https://example.com/assets/site.css",
+                "https://example.com/embed",
+                "https://example.com/map",
+                "https://example.com/search?q=test",
+            ],
+        )
+        self.assertNotIn(
+            "https://example.com/not-guessed-from-script",
+            links,
+        )
+
+    def test_extract_links_deduplicates_urls_across_tag_types(self):
+        html = """
+        <a href="/same">One</a>
+        <iframe src="/same"></iframe>
+        <form action="/same"></form>
+        """
+
+        links = cyberscraper.extract_links(html, "https://example.com/")
+
+        self.assertEqual(links, ["https://example.com/same"])
 
     def test_malformed_html_still_yields_valid_links(self):
         html = '<html><body><a href="/ok"><b>Open<a href="/second">Second'

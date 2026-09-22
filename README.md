@@ -2,7 +2,9 @@
 
 Scryx is a focused web reconnaissance CLI for authorized security work. It grew from the original CyberScraper project into an installable command-line tool designed for Kali Linux and normal terminal use.
 
-> Current release: **v1.0.1**
+> Current stable release: **v1.0.1**
+>
+> Development branch: **v1.1 Recon Intelligence**
 >
 > The repository is public. Use Scryx only on systems you own or where you have explicit permission to perform reconnaissance or security testing.
 
@@ -32,7 +34,7 @@ scryx example.com --recon --report
 - Installable Kali/Linux CLI through `pipx`
 - Short global command: `scryx`
 - Missing URL schemes default to HTTPS
-- HTTP/HTTPS link discovery
+- HTTP/HTTPS link discovery from explicit HTML URL-bearing attributes (`a`, `area`, `form`, `iframe`, `frame`, `script`, and `link`)
 - Relative-to-absolute URL normalization
 - Duplicate and fragment removal
 - Internal/external classification
@@ -52,6 +54,13 @@ scryx example.com --recon --report
   - parameterized URLs
   - dynamic candidates
   - unique query-parameter names
+  - discovered static resource types
+- Static resources remain visible in discovery/analysis but are kept out of the HTML crawl queue
+- Recon Intelligence summary:
+  - observed internal/external hosts
+  - internal parameterized routes and dynamic candidates
+  - factual recon leads
+  - deterministic suggested next steps based only on observed scan data
 - Bounded HTTP status checks
 - Redirect reporting
 - Broken/error result reporting
@@ -271,6 +280,8 @@ Scryx uses deterministic URL-shape heuristics rather than claiming to understand
 
 A dynamic candidate is a reconnaissance hint, not proof that the server executes dynamic code.
 
+The v1.1 development work also summarizes resource types and adds a Recon Intelligence layer with factual leads and suggested next steps. These suggestions are workflow guidance derived from observed scan data; they are not vulnerability findings.
+
 ## Developer installation
 
 For development on Windows, Linux, or macOS:
@@ -352,6 +363,8 @@ Scryx/
 **v1.0.0rc1 — Release candidate:** package naming check completed, tracked repository contents reviewed, Kali deep/reporting validation passed, and the release-candidate acceptance test completed successfully.
 
 **v1.0.0 — Stable release:** simple Kali installation, short normal workflow, stable presets, bounded reconnaissance, useful reports, clean documentation, and final Kali validation completed.
+
+**v1.1 — Recon Intelligence (in development):** broader explicit HTML URL discovery, static-resource crawl separation, resource-type summaries, factual recon leads, and deterministic suggested next steps.
 
 ## Responsible use
 

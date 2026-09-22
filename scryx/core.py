@@ -111,14 +111,33 @@ def canonical_crawl_url(url: str) -> str:
 
 
 def extract_links(html: str, base_url: str) -> list[str]:
-    """Extract unique normalized links from HTML."""
+    """Extract unique normalized navigation/resource URLs from HTML.
+
+    This intentionally parses only explicit HTML URL-bearing attributes. It
+    does not execute JavaScript or guess URLs from arbitrary script text.
+    """
     soup = BeautifulSoup(html, "html.parser")
     links: set[str] = set()
 
-    for tag in soup.find_all("a", href=True):
-        normalized = normalize_url(base_url, tag["href"])
-        if normalized is not None:
-            links.add(normalized)
+    url_attributes = {
+        "a": ("href",),
+        "area": ("href",),
+        "form": ("action",),
+        "iframe": ("src",),
+        "frame": ("src",),
+        "script": ("src",),
+        "link": ("href",),
+    }
+
+    for tag_name, attributes in url_attributes.items():
+        for tag in soup.find_all(tag_name):
+            for attribute in attributes:
+                value = tag.get(attribute)
+                if not value:
+                    continue
+                normalized = normalize_url(base_url, value)
+                if normalized is not None:
+                    links.add(normalized)
 
     return sorted(links)
 
@@ -217,6 +236,11 @@ def is_static_asset(url: str) -> bool:
     return Path(urlparse(url).path).suffix.lower() in STATIC_ASSET_EXTENSIONS
 
 
+def is_crawlable_page(url: str) -> bool:
+    """Return True when a discovered URL is suitable for the HTML crawl queue."""
+    return not is_static_asset(url)
+
+
 def analyze_links(links: list[str]) -> dict:
     """Build deterministic URL-shape intelligence for discovered links."""
     static_assets: list[str] = []
@@ -240,6 +264,11 @@ def analyze_links(links: list[str]) -> dict:
             if not static:
                 dynamic_candidates.append(link)
 
+    asset_types: dict[str, int] = {}
+    for asset in static_assets:
+        extension = Path(urlparse(asset).path).suffix.lower() or "[no extension]"
+        asset_types[extension] = asset_types.get(extension, 0) + 1
+
     return {
         "summary": {
             "pages": len(pages),
@@ -247,12 +276,127 @@ def analyze_links(links: list[str]) -> dict:
             "parameterized": len(parameterized),
             "dynamic_candidates": len(dynamic_candidates),
             "unique_parameters": len(unique_parameters),
+            "asset_types": len(asset_types),
         },
         "pages": pages,
         "static_assets": static_assets,
+        "asset_types": dict(sorted(asset_types.items())),
         "parameterized": parameterized,
         "dynamic_candidates": dynamic_candidates,
         "unique_parameters": sorted(unique_parameters),
+    }
+
+
+def build_recon_intelligence(
+    target_url: str,
+    internal: list[str],
+    external: list[str],
+    analysis: dict,
+    http_checks: list[dict] | None = None,
+) -> dict:
+    """Build factual, deterministic recon intelligence from collected results."""
+    http_checks = http_checks or []
+    target_host = urlparse(target_url).netloc.lower()
+    internal_hosts = sorted({urlparse(url).netloc.lower() for url in internal if urlparse(url).netloc})
+    external_hosts = sorted({urlparse(url).netloc.lower() for url in external if urlparse(url).netloc})
+
+    parameterized_urls = [
+        item["url"]
+        for item in analysis.get("parameterized", [])
+        if item.get("url") and is_internal_link(item["url"], target_url)
+    ]
+    dynamic_candidates = [
+        url
+        for url in analysis.get("dynamic_candidates", [])
+        if is_internal_link(url, target_url)
+    ]
+    redirects = [item["url"] for item in http_checks if item.get("redirected")]
+    broken_or_error = [
+        item["url"]
+        for item in http_checks
+        if item.get("broken") or item.get("error")
+    ]
+
+    leads: list[dict[str, object]] = []
+    if parameterized_urls:
+        leads.append({
+            "type": "parameterized_routes",
+            "count": len(parameterized_urls),
+            "items": parameterized_urls,
+            "note": "Internal routes with query parameters were discovered.",
+        })
+    if external_hosts:
+        leads.append({
+            "type": "external_hosts",
+            "count": len(external_hosts),
+            "items": external_hosts,
+            "note": "External hosts were referenced by discovered links; they were not crawled.",
+        })
+    if redirects:
+        leads.append({
+            "type": "redirects",
+            "count": len(redirects),
+            "items": redirects,
+            "note": "Checked URLs with redirect behavior were observed.",
+        })
+    if broken_or_error:
+        leads.append({
+            "type": "http_errors",
+            "count": len(broken_or_error),
+            "items": broken_or_error,
+            "note": "Checked URLs returned an HTTP error status or request error.",
+        })
+
+    next_steps: list[dict[str, str]] = []
+    if parameterized_urls:
+        next_steps.append({
+            "type": "review_parameterized_routes",
+            "action": "Review the discovered internal parameterized routes and their parameter names.",
+            "reason": "They are explicit application inputs observed during discovery.",
+        })
+    if external_hosts:
+        next_steps.append({
+            "type": "review_external_hosts",
+            "action": "Review referenced external hosts before making any additional requests to them.",
+            "reason": "They may be third-party or outside the authorized scope.",
+        })
+    if redirects:
+        next_steps.append({
+            "type": "review_redirects",
+            "action": "Review observed redirect destinations and confirm they remain within the intended scope.",
+            "reason": "Redirect behavior can change the effective destination of a discovered URL.",
+        })
+    if broken_or_error:
+        next_steps.append({
+            "type": "review_http_errors",
+            "action": "Review HTTP error results to separate unavailable routes from transient request failures.",
+            "reason": "An error response alone is not evidence of a vulnerability.",
+        })
+    internal_static_assets = [
+        url
+        for url in analysis.get("static_assets", [])
+        if is_internal_link(url, target_url)
+    ]
+    if internal_static_assets:
+        next_steps.append({
+            "type": "review_resources",
+            "action": "Review the discovered internal resource inventory when additional application mapping is useful.",
+            "reason": "Internal static resources are reported but are intentionally kept out of the HTML crawl queue.",
+        })
+
+    return {
+        "target_host": target_host,
+        "hosts": {
+            "internal": internal_hosts,
+            "external": external_hosts,
+            "internal_count": len(internal_hosts),
+            "external_count": len(external_hosts),
+        },
+        "internal_parameterized_routes": parameterized_urls,
+        "internal_dynamic_candidates": dynamic_candidates,
+        "leads": leads,
+        "next_steps": next_steps,
+        "scope_note": "Recon intelligence is derived only from discovered links and bounded HTTP checks; it is not a vulnerability assessment.",
     }
 
 
@@ -422,6 +566,8 @@ def crawl(
                 continue
             if has_excluded_extension(link, exclude_extensions):
                 continue
+            if not is_crawlable_page(link):
+                continue
 
             crawl_link = canonical_crawl_url(link)
             if (
@@ -557,6 +703,13 @@ def build_report(
     crawl_errors = crawl_errors or []
     analysis = analysis or analyze_links(all_links)
     http_checks = http_checks or []
+    recon_intelligence = build_recon_intelligence(
+        final_url,
+        internal,
+        external,
+        analysis,
+        http_checks,
+    )
 
     return {
         "requested_url": requested_url,
@@ -586,6 +739,7 @@ def build_report(
             "external": visible_external,
         },
         "analysis": analysis,
+        "recon_intelligence": recon_intelligence,
         "http_checks": {
             "summary": summarize_http_checks(http_checks),
             "results": http_checks,
