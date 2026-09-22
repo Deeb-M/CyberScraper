@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.2
+
+Documentation and CLI help alignment release.
+
+- Updates `scryx --help` to surface URL analysis, Recon Map, Recon Intelligence, HTTP checks, scope controls, and structured reporting.
+- Aligns the README and User Guide with the current stable CLI behavior and installation workflow.
+- Preserves the v1.1.1 reconnaissance behavior; this patch does not change crawl, scope, HTTP-check, or reporting logic.
+
 ## 1.1.1
 
 Recon Intelligence and terminal usability release.
