@@ -357,6 +357,71 @@ class CrawlTests(unittest.TestCase):
         self.assertEqual(links, ["https://example.com/"])
 
     @patch("scryx.core.scrape")
+    def test_static_resources_are_discovered_but_not_queued(self, mock_scrape):
+        mock_scrape.return_value = (
+            [
+                "https://example.com/about",
+                "https://example.com/assets/app.js",
+                "https://example.com/assets/site.css",
+                "https://example.com/logo.png",
+            ],
+            "https://example.com/",
+        )
+
+        links, _final_url, pages, errors = cyberscraper.crawl(
+            "https://example.com/",
+            depth=1,
+            max_pages=10,
+            delay=0,
+        )
+
+        self.assertEqual(
+            links,
+            [
+                "https://example.com/about",
+                "https://example.com/assets/app.js",
+                "https://example.com/assets/site.css",
+                "https://example.com/logo.png",
+            ],
+        )
+        self.assertEqual(pages, ["https://example.com/"])
+        self.assertEqual(errors, [])
+        self.assertEqual(mock_scrape.call_count, 1)
+
+    @patch("scryx.core.scrape")
+    def test_page_routes_remain_eligible_for_queue(self, mock_scrape):
+        mock_scrape.side_effect = [
+            (
+                [
+                    "https://example.com/about",
+                    "https://example.com/search?q=test",
+                    "https://example.com/app.js",
+                ],
+                "https://example.com/",
+            ),
+            ([], "https://example.com/about"),
+            ([], "https://example.com/search?q=test"),
+        ]
+
+        _links, _final_url, pages, errors = cyberscraper.crawl(
+            "https://example.com/",
+            depth=1,
+            max_pages=10,
+            delay=0,
+        )
+
+        self.assertEqual(
+            pages,
+            [
+                "https://example.com/",
+                "https://example.com/about",
+                "https://example.com/search?q=test",
+            ],
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(mock_scrape.call_count, 3)
+
+    @patch("scryx.core.scrape")
     def test_max_pages_stops_crawl(self, mock_scrape):
         mock_scrape.side_effect = [
             (
