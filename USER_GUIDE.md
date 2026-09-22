@@ -9,13 +9,13 @@ This guide explains how to use Scryx in normal authorized reconnaissance workflo
 The simplest Kali/Linux installation from the public GitHub repository is:
 
 ```bash
-pipx install git+https://github.com/Deeb-M/Scryx.git
+pipx install git+https://github.com/Deeb-M/Scryx.git@v1.1.1
 ```
 
-If Scryx is already installed and you want to reinstall the current GitHub version:
+If Scryx is already installed and you want to reinstall the current stable release:
 
 ```bash
-pipx install --force git+https://github.com/Deeb-M/Scryx.git
+pipx install --force git+https://github.com/Deeb-M/Scryx.git@v1.1.1
 ```
 
 Verify the installation:
@@ -174,7 +174,7 @@ Scryx uses deterministic URL-shape heuristics:
 
 A dynamic candidate is only a reconnaissance hint. It does not prove that server-side dynamic code is vulnerable or even that the parameter affects application behavior.
 
-Important in v1.0.0: `--internal-only` controls which link groups are displayed, but URL analysis is calculated from all discovered links. Therefore an external URL can still contribute a parameter name to the URL-analysis summary.
+`--internal-only` controls which link groups are displayed, but URL analysis is calculated from all discovered links. Therefore an external URL can still contribute a parameter name to the URL-analysis summary.
 
 ### Recon Intelligence (v1.1.1)
 
@@ -182,7 +182,7 @@ After URL analysis, Scryx can summarize observed hosts, internal parameterized r
 
 The suggested next steps are deterministic workflow guidance based only on what the scan observed. They do not label routes, parameters, redirects, resources, or HTTP errors as vulnerabilities.
 
-Scryx v1.1 also discovers explicit URLs from HTML attributes on `a`, `area`, `form`, `iframe`, `frame`, `script`, and `link` elements. Static resources such as JavaScript and CSS remain visible in discovery and analysis, but are not placed in the HTML crawl queue.
+Scryx also discovers explicit URLs from HTML attributes on `a`, `area`, `form`, `iframe`, `frame`, `script`, and `link` elements. Static resources such as JavaScript and CSS remain visible in discovery and analysis, but are not placed in the HTML crawl queue.
 
 Scryx still does not execute JavaScript or guess URLs from arbitrary inline script text.
 
@@ -207,7 +207,7 @@ scryx example.com --recon --internal-only
 
 This hides external links from the displayed link groups.
 
-It does not change the v1.0.0 URL-analysis data set; URL analysis still uses all discovered links.
+It does not change the URL-analysis data set; URL analysis still uses all discovered links.
 
 ### Restrict the crawl to one path prefix
 
@@ -425,7 +425,27 @@ scryx example.com --recon --report-dir ~/recon-reports
 
 `--report-dir` implies `--report`.
 
-## 10. Full option reference
+## 10. Terminal colors
+
+Scryx uses a restrained color hierarchy to make important reconnaissance information easier to identify without turning normal output into visual noise.
+
+- **Orange**: section headings.
+- **Cyan**: selected recon-relevant structure and findings, such as parameterized routes and parameters.
+- **Yellow**: redirects and items that deserve review.
+- **Red**: HTTP errors and failures.
+- Normal informational output and routine successful HTTP 2xx checks remain unaccented.
+
+Color behavior can be controlled with:
+
+```bash
+scryx example.com --recon --color auto
+scryx example.com --recon --color always
+scryx example.com --recon --color never
+```
+
+`auto` is the default and enables colors when output is connected to a terminal.
+
+## 11. Full option reference
 
 The authoritative current option list is always available from:
 
@@ -454,11 +474,12 @@ scryx --help
 | `--output FILE` | Save one JSON, CSV, or TXT report. |
 | `--report` | Create a timestamped JSON/CSV/TXT scan bundle. |
 | `--report-dir DIR` | Set the base directory for report bundles and imply `--report`. |
+| `--color auto|always|never` | Control terminal color output; default `auto`. |
 | `--timeout SECONDS` | Set HTTP timeout; default 10 seconds. |
 
 The preset options `--quick`, `--recon`, and `--deep` are mutually exclusive.
 
-## 11. Practical examples
+## 12. Practical examples
 
 Fast first look:
 
@@ -505,7 +526,7 @@ Custom bounded scan:
 scryx example.com --depth 1 --max-pages 20 --delay 0.75 --check-links --check-limit 20
 ```
 
-## 12. What Scryx does not do
+## 13. What Scryx does not do
 
 Scryx is a bounded web reconnaissance tool. It is not a vulnerability scanner or exploitation framework.
 
@@ -523,7 +544,7 @@ It does not perform:
 
 Finding a parameter, route, redirect, or HTTP error is reconnaissance information, not proof of a security vulnerability.
 
-## 13. Responsible use
+## 14. Responsible use
 
 Authorization is the boundary.
 
