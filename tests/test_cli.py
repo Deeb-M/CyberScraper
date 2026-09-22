@@ -94,7 +94,7 @@ class ColorCliTests(unittest.TestCase):
 
     def test_color_always_adds_ansi_and_never_does_not(self):
         cli.configure_color("always")
-        self.assertIn("\033[36m", cli.heading("[RECON MAP]"))
+        self.assertIn("\033[38;5;208m", cli.heading("[RECON MAP]"))
         cli.configure_color("never")
         self.assertEqual(cli.heading("[RECON MAP]"), "[RECON MAP]")
 
