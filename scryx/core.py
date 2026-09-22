@@ -347,6 +347,38 @@ def build_recon_intelligence(
             "note": "Checked URLs returned an HTTP error status or request error.",
         })
 
+    next_steps: list[dict[str, str]] = []
+    if parameterized_urls:
+        next_steps.append({
+            "type": "review_parameterized_routes",
+            "action": "Review the discovered internal parameterized routes and their parameter names.",
+            "reason": "They are explicit application inputs observed during discovery.",
+        })
+    if external_hosts:
+        next_steps.append({
+            "type": "review_external_hosts",
+            "action": "Review referenced external hosts before making any additional requests to them.",
+            "reason": "They may be third-party or outside the authorized scope.",
+        })
+    if redirects:
+        next_steps.append({
+            "type": "review_redirects",
+            "action": "Review observed redirect destinations and confirm they remain within the intended scope.",
+            "reason": "Redirect behavior can change the effective destination of a discovered URL.",
+        })
+    if broken_or_error:
+        next_steps.append({
+            "type": "review_http_errors",
+            "action": "Review HTTP error results to separate unavailable routes from transient request failures.",
+            "reason": "An error response alone is not evidence of a vulnerability.",
+        })
+    if analysis.get("static_assets"):
+        next_steps.append({
+            "type": "review_resources",
+            "action": "Review the discovered resource inventory when additional application mapping is useful.",
+            "reason": "Static resources are reported but are intentionally kept out of the HTML crawl queue.",
+        })
+
     return {
         "target_host": target_host,
         "hosts": {
@@ -358,6 +390,7 @@ def build_recon_intelligence(
         "internal_parameterized_routes": parameterized_urls,
         "internal_dynamic_candidates": dynamic_candidates,
         "leads": leads,
+        "next_steps": next_steps,
         "scope_note": "Recon intelligence is derived only from discovered links and bounded HTTP checks; it is not a vulnerability assessment.",
     }
 
