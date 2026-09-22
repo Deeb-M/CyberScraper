@@ -44,12 +44,14 @@ class ReportingTests(unittest.TestCase):
                     "parameterized": 2,
                     "dynamic_candidates": 1,
                     "unique_parameters": 2,
+                    "asset_types": 1,
                 },
                 "pages": [
                     "https://example.com/search?q=test",
                     "https://external.test/page",
                 ],
                 "static_assets": ["https://example.com/app.js?v=1"],
+                "asset_types": {".js": 1},
                 "parameterized": [
                     {
                         "url": "https://example.com/search?q=test",
@@ -140,6 +142,7 @@ class ReportingTests(unittest.TestCase):
         self.assertIn("Scryx Recon Report", text)
         self.assertIn("Target: https://example.com", text)
         self.assertIn("Parameterized URLs: 2", text)
+        self.assertIn("Resource types: .js: 1", text)
         self.assertIn("Broken/error results: 1", text)
         self.assertIn("Recon Intelligence", text)
         self.assertIn("External hosts referenced: 1", text)
