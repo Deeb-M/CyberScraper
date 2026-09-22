@@ -16,6 +16,7 @@ from .core import (
     MAX_CRAWL_DEPTH,
     MAX_PAGE_LIMIT,
     analyze_links,
+    build_recon_intelligence,
     build_report,
     check_http_links,
     classify_links,
@@ -212,6 +213,22 @@ def print_url_analysis(analysis: dict) -> None:
         print("Parameters: " + ", ".join(analysis["unique_parameters"]))
 
 
+def print_recon_intelligence(intelligence: dict) -> None:
+    hosts = intelligence["hosts"]
+    print("\n[RECON INTELLIGENCE]")
+    print(f"Target host: {intelligence['target_host']}")
+    print(f"Internal hosts observed: {hosts['internal_count']}")
+    print(f"External hosts referenced: {hosts['external_count']}")
+    print(f"Internal parameterized routes: {len(intelligence['internal_parameterized_routes'])}")
+    print(f"Internal dynamic candidates: {len(intelligence['internal_dynamic_candidates'])}")
+
+    leads = intelligence.get("leads", [])
+    if leads:
+        print("Recon leads:")
+        for lead in leads:
+            print(f"- {lead['type']}: {lead['count']}")
+
+
 def print_http_checks(checks: list[dict]) -> None:
     if not checks:
         return
@@ -340,6 +357,15 @@ def main() -> int:
             delay=settings["delay"],
         )
         print_http_checks(http_checks)
+
+    recon_intelligence = build_recon_intelligence(
+        final_url,
+        internal,
+        external,
+        analysis,
+        http_checks,
+    )
+    print_recon_intelligence(recon_intelligence)
 
     report_requested = bool(args.output or args.report or args.report_dir)
     report: dict | None = None
